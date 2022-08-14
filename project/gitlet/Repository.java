@@ -30,6 +30,8 @@ public class Repository {
     public static final File BLOB_DIR = join(GITLET_DIR, "blobs");
     /** Directory inside .gitlet for storing pointers to branches. */
     public static final File HEAD_DIR = join(GITLET_DIR, "heads");
+    /** Staging directory. */
+    public static final File STAGE_DIR = join(GITLET_DIR, "staging");
 
     public static void makeRepo() {
         boolean created = GITLET_DIR.mkdir();
@@ -40,23 +42,12 @@ public class Repository {
             COMM_DIR.mkdirs();
             BLOB_DIR.mkdirs();
             HEAD_DIR.mkdirs();
+            STAGE_DIR.mkdirs();
             Commit init = new Commit("initial commit", null, null, true);
-            addCommit(init);
         }
     }
 
-    public static void addCommit(Commit comm) {
-        File destination = Utils.join(COMM_DIR, comm.getPrefix());
-        destination.mkdir();
-        File commFile = Utils.join(destination, comm.getSHA1());
-        try {
-            commFile.createNewFile();
-        } catch (Exception e) {
-            System.out.printf("Caught exception %s when creating file.%n", e.toString());
-            System.exit(0);
-        }
-        Utils.writeObject(commFile, comm);
-    }
+
 
     /* TODO: fill in the rest of this class. */
 }

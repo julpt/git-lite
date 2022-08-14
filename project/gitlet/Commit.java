@@ -1,9 +1,12 @@
 package gitlet;
 
+import java.io.File;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
+
+import static gitlet.Utils.join;
 
 // TODO: any imports you need here
 
@@ -29,6 +32,9 @@ public class Commit implements Serializable {
      * comment above them describing what that variable represents and how that
      * variable is used. We've provided one example for `message`.
      */
+
+    /** Path to directory that stores all Commits. */
+    private File COMM_DIR = join(new File(System.getProperty("user.dir")), ".gitlet", "commits");
 
     /** The SHA1 of this Commit. */
     private String SHA1;
@@ -71,7 +77,20 @@ public class Commit implements Serializable {
             SHA1 = Utils.sha1(timestamp.toString(), message, fileMap.toString(), parent);
         }
         prefix = SHA1.substring(0,2);
+        this.addCommit();
     }
 
+    private void addCommit() {
+        File destination = Utils.join(COMM_DIR, prefix);
+        destination.mkdir();
+        File commFile = Utils.join(destination, SHA1);
+        try {
+            commFile.createNewFile();
+        } catch (Exception e) {
+            System.out.printf("Caught exception %s when creating file.%n", e.toString());
+            System.exit(0);
+        }
+        Utils.writeObject(commFile, this);
+    }
 
 }
