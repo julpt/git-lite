@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.Serializable;
 import java.util.Date;
 import java.util.Map;
+import java.util.TreeMap;
 
 
 // TODO: any imports you need here
@@ -79,6 +80,7 @@ public class Commit implements Serializable {
         timestamp = new Date(0);
         SHA1 = Utils.sha1(timestamp.toString(), message);
         prefix = SHA1.substring(0,2);
+        fileMap = new TreeMap<String, String>();
     }
 
     /** Constructor for non-merged, not initial Commits.
@@ -104,9 +106,13 @@ public class Commit implements Serializable {
         Utils.writeObject(commFile, this);
     }
 
-    /** Returns the Commit which has the given SHA1. */
+    /** Returns the Commit with the given SHA1. */
     public static Commit getFromSHA(String SHA) {
         return Utils.readObject(Utils.join(COMM_DIR, SHA.substring(0,2), SHA), Commit.class);
+    }
+
+    public String getFileSHA (String fileName) {
+        return fileMap.get(fileName);
     }
 
     public boolean isInitial() {

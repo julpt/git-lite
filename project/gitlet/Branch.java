@@ -6,19 +6,17 @@ import java.io.File;
 
 public class Branch {
 
-    /** Directory inside .gitlet for storing pointers to branches. */
     public static final File HEAD_DIR = Repository.HEAD_DIR;
-
-    /** File that tracks the current HEAD branch */
     public static final File HEAD = Repository.HEAD;
 
-    /** Adds a new branch, if there isn't one with the given name. */
+    /** Adds new branch with given name. Sets current commit as head.
+     * Exits if branch with given name already exists. */
     public static void addBranch(String name) {
         Commit head = getHeadCommit();
         addBranch(name, head);
     }
 
-    /** Adds new branch with given name and head. */
+    /** Adds new branch with given name and head. Exits if branch with given name already exists. */
     public static void addBranch(String name, Commit head) {
         File branch = Utils.join(HEAD_DIR, name);
         if (branch.isFile()) {
@@ -29,9 +27,8 @@ public class Branch {
     }
 
     /** Returns the current head commit. */
-    private static Commit getHeadCommit() {
+    public static Commit getHeadCommit() {
         String headName = Utils.readContentsAsString(HEAD);
-        System.out.println(headName);
         File headBranch = Utils.join(HEAD_DIR, headName);
         String headSHA = Utils.readContentsAsString(headBranch);
         return Commit.getFromSHA(headSHA);
