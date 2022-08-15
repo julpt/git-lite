@@ -6,8 +6,8 @@ import java.io.File;
 
 public class Branch {
 
-    public static final File HEAD_DIR = Repository.HEAD_DIR;
-    public static final File HEAD = Repository.HEAD;
+    public static final File HEAD_DIR = Paths.HEAD_DIR;
+    public static final File HEAD = Paths.HEAD;
 
     /** Adds new branch with given name. Sets current commit as head.
      * Exits if branch with given name already exists. */

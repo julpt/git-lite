@@ -14,7 +14,7 @@ public class Blob implements Serializable {
      */
 
     /** Path to directory that stores all Blobs. */
-    private static final File BLOB_DIR = Repository.BLOB_DIR;
+    private static final File BLOB_DIR = Paths.BLOB_DIR;
 
     /** The SHA1 of this Blob.
      * If two Blobs have the same SHA1, we assume their contents are the same.
@@ -44,7 +44,7 @@ public class Blob implements Serializable {
      * @param fileName name of the file
      */
     public Blob(String fileName) {
-        File target = Utils.join(Repository.CWD, fileName);
+        File target = Utils.join(Paths.CWD, fileName);
         contents = Utils.readContents(target);
         name = fileName;
         SHA1 = Utils.sha1(contents);

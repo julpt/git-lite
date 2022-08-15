@@ -33,7 +33,7 @@ public class Commit implements Serializable {
      */
 
     /** Path to directory that stores all Commits. */
-    private static final File COMM_DIR = Repository.COMM_DIR;
+    private static final File COMM_DIR = Paths.COMM_DIR;
 
     /** The SHA1 of this Commit. */
     private final String SHA1;
@@ -111,10 +111,12 @@ public class Commit implements Serializable {
         return Utils.readObject(Utils.join(COMM_DIR, SHA.substring(0,2), SHA), Commit.class);
     }
 
+    /** Returns the SHA1 of a given file in this Commit. Null if file not in Commit. */
     public String getFileSHA (String fileName) {
         return fileMap.get(fileName);
     }
 
+    /** Returns true for the initial Commit, false otherwise. */
     public boolean isInitial() {
         return isInitial;
     }
