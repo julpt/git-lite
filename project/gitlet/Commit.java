@@ -139,6 +139,11 @@ public class Commit implements Serializable {
         return isInitial;
     }
 
+    /** Returns true if this commit's message is the same as the given string, false otherwise. */
+    public boolean hasMessage(String message) {
+        return message.equals(this.message);
+    }
+
     /** Starting at the given commit, prints details of each commit backwards along the commit
      * tree until the initial commit, following the first parent commit links, ignoring any
      * second parents found in merge commits. */

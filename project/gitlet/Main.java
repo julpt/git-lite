@@ -15,6 +15,8 @@ public class Main {
             System.out.println("Please enter a command.");
         }
         String firstArg = args[0];
+        String fileName;
+        String message;
         switch(firstArg) {
             case "init":
                 Repository.setup();
@@ -24,22 +26,22 @@ public class Main {
                 if (args.length != 2) {
                     wrongOperands();
                 }
-                String addedFile = args[1];
-                Repository.addFile(addedFile);
+                fileName = args[1];
+                Repository.addFile(fileName);
                 break;
             case "commit":
                 if (args.length != 2) {
                     wrongOperands();
                 }
-                String message = args[1];
+                message = args[1];
                 Repository.commit(message);
                 break;
             case "rm":
                 if (args.length != 2) {
                     wrongOperands();
                 }
-                String rmFile = args[1];
-                Repository.removeFile(rmFile);
+                fileName = args[1];
+                Repository.removeFile(fileName);
                 break;
             case "log":
                 if (args.length != 1) {
@@ -52,6 +54,13 @@ public class Main {
                     wrongOperands();
                 }
                 Repository.logAll();
+                break;
+            case "find":
+                if (args.length != 2) {
+                    wrongOperands();
+                }
+                message = args[1];
+                Repository.find(message);
                 break;
             // TODO: FILL THE REST IN
         }

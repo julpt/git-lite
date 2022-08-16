@@ -139,12 +139,29 @@ public class Repository {
         head.printLog();
     }
 
+    /** Like log, except displays information about all commits ever made.
+     * Commits are not listed in a particular order.
+     */
     public static void logAll() {
         checkInitialized();
         List<String> commits = Utils.plainFilenamesIn(COMM_DIR);
         if (commits != null) {
             for (String sha: commits) {
                 System.out.println(Commit.getFromSHA(sha));
+            }
+        }
+    }
+
+    /** Prints out the ids of all commits that have the given commit message, one per line. */
+    public static void find(String message) {
+        checkInitialized();
+        List<String> commits = Utils.plainFilenamesIn(COMM_DIR);
+        if (commits != null) {
+            for (String sha: commits) {
+                Commit comm = (Commit.getFromSHA(sha));
+                if (comm.hasMessage(message)) {
+                    System.out.println(sha);
+                }
             }
         }
     }
