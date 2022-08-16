@@ -1,9 +1,7 @@
 package gitlet;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Objects;
+import java.util.TreeSet;
 import java.util.TreeMap;
 
 public class Staging {
@@ -39,9 +37,8 @@ public class Staging {
         File destination = Utils.join(STAGE_DIR, addedFile.getSHA1());
 
         /* If file was staged for removal, it will be unstaged. */
-        ArrayList<String> removedFiles = getRemoved();
-        if (removedFiles.contains(fileName)) {
-            removedFiles.remove(fileName);
+        TreeSet<String> removedFiles = getRemoved();
+        if (removedFiles.remove(fileName)) {;
             Utils.writeObject(REMOVED, removedFiles);
         }
 
@@ -56,7 +53,7 @@ public class Staging {
         In that case, this version of the file isn't saved and its reference in
         the index is removed. */
         String currentSHA = Branch.getHeadCommit().getFileSHA(fileName);
-        if (Objects.equals(currentSHA, addedFile.getSHA1())) {
+        if (addedFile.getSHA1().equals(currentSHA)) {
             stagedFiles.remove(fileName);
             Utils.writeObject(INDEX, stagedFiles);
         } else {
@@ -89,9 +86,8 @@ public class Staging {
     private static boolean stageForRemoval(String fileName) {
         String fileInCurrentCommit = Branch.getHeadCommit().getFileSHA(fileName);
         if (fileInCurrentCommit != null) {
-            ArrayList<String> removed = getRemoved();
-            if (!removed.contains(fileName)) {
-                removed.add(fileName);
+            TreeSet<String> removed = getRemoved();
+            if (removed.add(fileName)) {
                 Utils.writeObject(REMOVED, removed);
                 File fileToDelete = Utils.join(CWD, fileName);
                 Utils.restrictedDelete(fileToDelete);
@@ -135,7 +131,7 @@ public class Staging {
         if (!REMOVED.isFile()) {
             Utils.createFile(REMOVED);
         }
-        Utils.writeObject(REMOVED, new ArrayList<String>());
+        Utils.writeObject(REMOVED, new TreeSet<String>());
     }
 
 
@@ -163,10 +159,10 @@ public class Staging {
         return Utils.readObject(INDEX, TreeMap.class);
     }
 
-    /** Returns a list of files staged to be removed. */
+    /** Returns a set of files staged to be removed. */
     @SuppressWarnings("unchecked")
-    public static ArrayList<String> getRemoved() {
-        return Utils.readObject(REMOVED, ArrayList.class);
+    public static TreeSet<String> getRemoved() {
+        return Utils.readObject(REMOVED, TreeSet.class);
     }
 
 }

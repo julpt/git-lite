@@ -2,10 +2,7 @@ package gitlet;
 
 import java.io.File;
 import java.io.Serializable;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 
 // TODO: any imports you need here
@@ -115,7 +112,7 @@ public class Commit implements Serializable {
      * @param removed names of files staged for removal
      */
     public static Commit addStaged(Commit currentCommit, String message,
-                                   TreeMap<String, String> added, List<String> removed) {
+                                   TreeMap<String, String> added, TreeSet<String> removed) {
         TreeMap<String, String> newFiles = new TreeMap<>(currentCommit.snapshot);
         for (String fileName: removed) {
             newFiles.remove(fileName);

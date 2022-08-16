@@ -62,6 +62,12 @@ public class Main {
                 message = args[1];
                 Repository.find(message);
                 break;
+            case "status":
+                if (args.length != 1) {
+                    wrongOperands();
+                }
+                Repository.status();
+                break;
             // TODO: FILL THE REST IN
         }
     }

@@ -41,4 +41,8 @@ public class Branch {
         String headSHA = Utils.readContentsAsString(headBranch);
         return Commit.getFromSHA(headSHA);
     }
+
+    public static String getCurrentBranchName() {
+        return Utils.readContentsAsString(HEAD);
+    }
 }

@@ -1,9 +1,7 @@
 package gitlet;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.TreeMap;
+import java.util.*;
 
 // TODO: any imports you need here
 
@@ -105,7 +103,7 @@ public class Repository {
         Staging.checkStaged();
         Commit currentCommit = Branch.getHeadCommit();
         TreeMap<String, String> stagedFiles = Staging.getStagedIndex();
-        ArrayList<String> removedFiles = Staging.getRemoved();
+        TreeSet<String> removedFiles = Staging.getRemoved();
         Commit newCommit = Commit.addStaged(currentCommit, message, stagedFiles, removedFiles);
         for (String fileName: stagedFiles.keySet()) {
             Blob addedFile = new Blob(fileName);
@@ -166,10 +164,61 @@ public class Repository {
         }
     }
 
+    /** Displays what branches currently exist, and marks the current branch with a *.
+     * Also displays what files have been staged for addition or removal.
+     * TODO: extra credit not staged and untracked*/
+    public static void status() {
+        checkInitialized();
+        printBranches();
+        printStaged();
+        printExtraCredit();
+    }
+
+    /** Prints what branches currently exist, and marks the current branch with a *. */
+    private static void printBranches() {
+        String currentBranch = Branch.getCurrentBranchName();
+        System.out.println("=== Branches ===");
+        List<String> branches = Utils.plainFilenamesIn(HEAD_DIR);
+        for (String branch: branches) {
+            if (currentBranch.equals(branch)) {
+                branch = "*" + branch;
+            }
+            System.out.println(branch);
+        }
+        System.out.println();
+    }
+
+    /** Prints what files have been staged for addition or removal. */
+    private static void printStaged() {
+        // Staged for addition
+        System.out.println("=== Staged Files ===");
+        TreeMap<String, String> added = Staging.getStagedIndex();
+        for (Map.Entry<String, String> entry: added.entrySet()) {
+            System.out.println(entry.getKey());
+        }
+        System.out.println();
+
+        // Staged for removal
+        System.out.println("=== Removed Files ===");
+        TreeSet<String> removed = Staging.getRemoved();
+        for (String fileName: removed) {
+            System.out.println(fileName);
+        }
+        System.out.println();
+    }
+
+    /** Placeholder: modifications not staged and untracked files */
+    private static void printExtraCredit() {
+        System.out.println("=== Modifications Not Staged For Commit ===");
+        System.out.println();
+        System.out.println("=== Untracked Files ===");
+        System.out.println();
+    }
+
     /** Checks if working directory is an initialized Gitlet directory.
      * Exits if it is not.
      */
-    public static void checkInitialized() {
+    private static void checkInitialized() {
         if(!GITLET_DIR.exists()) {
             Utils.printAndExit("Not in an initialized Gitlet directory.");
         }
