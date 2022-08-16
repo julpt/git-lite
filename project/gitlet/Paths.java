@@ -19,7 +19,7 @@ public final class Paths {
     /** Directory inside .gitlet for storing pointers to branches. */
     public static final File HEAD_DIR = Utils.join(GITLET_DIR, "heads");
 
-    /** Staging directory. */
+    /** Directory inside .gitlet for storing files staged for addition. */
     public static final File STAGE_DIR = Utils.join(GITLET_DIR, "staging");
 
     /** File that tracks the current HEAD branch. */

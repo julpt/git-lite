@@ -2,6 +2,7 @@ package gitlet;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.TreeMap;
 
 // TODO: any imports you need here
@@ -113,6 +114,39 @@ public class Repository {
         newCommit.saveCommit();
         Branch.moveBranchHead(newCommit);
         Staging.resetStaging();
+    }
+
+    /** Unstages the file if it is currently staged for addition.
+     * If the file is tracked in the current commit, stage it for removal and remove the file
+     * from the working directory if the user has not already done so.<br><br>
+     *
+     * If the file is neither staged nor tracked by the head commit, prints an error message.
+     */
+    public static void removeFile(String fileName) {
+        checkInitialized();
+        Staging.removeFile(fileName);
+    }
+
+    /** Starting at the current head commit, display information about each commit backwards along
+     * the commit tree until the initial commit, following the first parent commit links, ignoring
+     * any second parents found in merge commits.
+     *
+     * For every node in this history, display the commit SHA1, timestamp and message..
+     */
+    public static void log() {
+        checkInitialized();
+        Commit head = Branch.getHeadCommit();
+        head.printLog();
+    }
+
+    public static void logAll() {
+        checkInitialized();
+        List<String> commits = Utils.plainFilenamesIn(COMM_DIR);
+        if (commits != null) {
+            for (String sha: commits) {
+                System.out.println(Commit.getFromSHA(sha));
+            }
+        }
     }
 
     /** Checks if working directory is an initialized Gitlet directory.

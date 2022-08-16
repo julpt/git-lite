@@ -39,11 +39,6 @@ public class Commit implements Serializable {
     /** The SHA1 of this Commit. */
     private final String SHA1;
 
-    /** The first two characters in the Commit's SHA1.
-     * Used to create a folder inside .gitlet/commits to store this commit.
-     */
-    private final String prefix;
-
     /** The message of this Commit. */
     private final String message;
 
@@ -51,13 +46,19 @@ public class Commit implements Serializable {
     private final Date timestamp;
 
     /** The snapshot of this Commit - mapping file names to blob references. */
-    private Map<String, String> fileMap;
+    private Map<String, String> snapshot;
 
-    /** The SHA1s of the parents of this Commit. */
-    private final String[] parents = new String[2];
+    /** The SHA1 of the main parent of this Commit. */
+    private String mainParent;
+
+    /** The SHA1 of the second parent of this Commit, if it exists. Null otherwise */
+    private String mergedParent;
 
     /** True for the initial Commit, false for any other Commit. */
     private final boolean isInitial;
+
+    /** True if this Commit is the result of a merge, false otherwise. */
+    private final boolean isMerged;
 
     /* TODO: fill in the rest of this class. */
 
@@ -65,9 +66,6 @@ public class Commit implements Serializable {
         return SHA1;
     }
 
-    public String getPrefix() {
-        return prefix;
-    }
 
     /** Constructor for initial Commit.
      *
@@ -77,35 +75,33 @@ public class Commit implements Serializable {
      * */
     public Commit() {
         isInitial = true;
+        isMerged = false;
         message = "initial commit";
         timestamp = new Date(0);
         SHA1 = Utils.sha1(timestamp.toString(), message);
-        prefix = SHA1.substring(0,2);
-        fileMap = new TreeMap<String, String>();
+        snapshot = new TreeMap<String, String>();
     }
 
     /** Constructor for non-merged, not initial Commits.
      * @param message commit message
      * @param parent main parent's SHA1
-     * @param fileMap hash map of file names to blob references.
+     * @param snapshot hash map of file names to blob references.
      * */
-    public Commit(String message, String parent, Map<String, String> fileMap) {
+    public Commit(String message, String parent, TreeMap<String, String> snapshot) {
         isInitial = false;
+        isMerged = false;
         this.message = message;
-        this.parents[0] = parent;
-        this.fileMap = fileMap;
+        this.mainParent = parent;
+        this.snapshot = snapshot;
         this.timestamp = new Date();
-        SHA1 = Utils.sha1(timestamp.toString(), message, fileMap.toString(), parent);
-        prefix = SHA1.substring(0,2);
+        SHA1 = Utils.sha1(timestamp.toString(), message, snapshot.toString(), parent);
     }
 
-    /** Saves this Commit to COMM_DIR, inside a folder denoted by its prefix.
+    /** Saves this Commit to COMM_DIR.
      * The name of this saved file is the SHA1 of the Commit.
      */
     public void saveCommit() {
-        File destination = Utils.join(COMM_DIR, prefix);
-        destination.mkdir();
-        File commFile = Utils.join(destination, SHA1);
+        File commFile = Utils.join(COMM_DIR, SHA1);
         Utils.createFile(commFile);
         Utils.writeObject(commFile, this);
     }
@@ -116,10 +112,11 @@ public class Commit implements Serializable {
      * @param currentCommit current commit
      * @param message Commit message
      * @param added names and SHA1s of files staged for addition
-     * @param removed names of files staged for removal*/
+     * @param removed names of files staged for removal
+     */
     public static Commit addStaged(Commit currentCommit, String message,
                                    TreeMap<String, String> added, List<String> removed) {
-        TreeMap<String, String> newFiles = new TreeMap<>(currentCommit.fileMap);
+        TreeMap<String, String> newFiles = new TreeMap<>(currentCommit.snapshot);
         for (String fileName: removed) {
             newFiles.remove(fileName);
         }
@@ -129,17 +126,47 @@ public class Commit implements Serializable {
 
     /** Returns the Commit with the given SHA1. */
     public static Commit getFromSHA(String SHA) {
-        return Utils.readObject(Utils.join(COMM_DIR, SHA.substring(0,2), SHA), Commit.class);
+        return Utils.readObject(Utils.join(COMM_DIR, SHA), Commit.class);
     }
 
     /** Returns the SHA1 of a given file in this Commit. Null if file not in Commit. */
     public String getFileSHA (String fileName) {
-        return fileMap.get(fileName);
+        return snapshot.get(fileName);
     }
 
-    /** Returns true for the initial Commit, false otherwise. */
+    /** Returns true if this is the initial Commit, false otherwise. */
     public boolean isInitial() {
         return isInitial;
+    }
+
+    /** Starting at the given commit, prints details of each commit backwards along the commit
+     * tree until the initial commit, following the first parent commit links, ignoring any
+     * second parents found in merge commits. */
+    public void printLog() {
+        System.out.println(this);
+        if (isInitial) {
+            return;
+        }
+        getFromSHA(mainParent).printLog();
+    }
+
+    @Override
+    public String toString() {
+        String commit;
+        if (!isMerged) {
+            commit = String.format("===%n" +
+                    "commit %1$s%n" +
+                    "Date: %2$ta %2$tb %2$te %2$tk:%2$tM:%2$tS %2$tY %2$tz%n" +
+                    "%3$s%n", SHA1, timestamp, message);
+        } else {
+            commit = String.format("===%n" +
+                    "commit %1$s%n" +
+                    "Merge: %4$s %5$s" +
+                    "Date: %2$ta %2$tb %2$te %2$tk:%2$tM:%2$tS %2$tY %2$tz%n" +
+                    "%3$s%n", SHA1, timestamp, message, mainParent.substring(0, 7),
+                    mergedParent.substring(0,7));
+        }
+        return commit;
     }
 
 }

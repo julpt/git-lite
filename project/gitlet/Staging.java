@@ -8,11 +8,21 @@ import java.util.TreeMap;
 
 public class Staging {
 
+    /** Current working directory. */
     public static final File CWD = Paths.CWD;
+
+    /** Directory of files staged for addition. */
     public static final File STAGE_DIR = Paths.STAGE_DIR;
+
+    /** File that tracks the current HEAD branch. */
     public static final File HEAD = Paths.HEAD;
+
+    /** File that tracks items added to the staging area. Maps file names to Blob SHA1s. */
     public static final File INDEX = Paths.INDEX;
-    public static final File REMOVED = Paths.REMOVED;
+
+    /** File that tracks items staged for removal. */
+     public static final File REMOVED = Paths.REMOVED;
+
 
     /** Adds a copy of the file as it currently exists to the staging area.
      * If file is already staged, it is overwritten.
@@ -36,13 +46,13 @@ public class Staging {
         }
 
         /* Check if a version of the file is already staged. If so, it will get deleted.
-        The new version will be staged, unless it is reverting to the most recent commit. */
+        The new version will be staged, unless it is reverting to the current commit. */
         String stagedSHA = stagedFiles.get(fileName);
         if (stagedSHA != null) {
             Utils.join(STAGE_DIR, stagedSHA).delete();
         }
 
-        /* Check if new version is the same as the one in the most recent commit.
+        /* Check if new version is the same as the one in the current commit.
         In that case, this version of the file isn't saved and its reference in
         the index is removed. */
         String currentSHA = Branch.getHeadCommit().getFileSHA(fileName);
@@ -60,17 +70,46 @@ public class Staging {
         }
     }
 
-    private static void removeFile(String fileName) {
+    /** Unstages the file if it is currently staged for addition.
+     * Returns true if the file was unstaged, false otherwise. */
+    private static boolean unstage(String fileName) {
         TreeMap<String, String> stagedFiles = getStagedIndex();
         if (stagedFiles.containsKey(fileName)) {
             stagedFiles.remove(fileName);
             Utils.writeObject(INDEX, stagedFiles);
-        } else {
+            return true;
+        }
+        return false;
+    }
+
+    /** If the file is tracked in the current commit, stages it for removal and
+     * removes it from the working directory.
+     * Returns true if the file was staged for removal, false otherwise.
+     */
+    private static boolean stageForRemoval(String fileName) {
+        String fileInCurrentCommit = Branch.getHeadCommit().getFileSHA(fileName);
+        if (fileInCurrentCommit != null) {
             ArrayList<String> removed = getRemoved();
             if (!removed.contains(fileName)) {
                 removed.add(fileName);
                 Utils.writeObject(REMOVED, removed);
+                File fileToDelete = Utils.join(CWD, fileName);
+                Utils.restrictedDelete(fileToDelete);
+                return true;
             }
+        }
+        return false;
+    }
+
+    /** Unstage the file if it is currently staged for addition.
+     * If the file is tracked in the current commit, stage it for removal and remove the file
+     * from the working directory if the user has not already done so.<br><br>
+     *
+     * If the file is neither staged nor tracked by the head commit, prints an error message.
+     * */
+    public static void removeFile(String fileName) {
+        if (!unstage(fileName) && !stageForRemoval(fileName)) {
+            Utils.printAndExit("No reason to remove the file.");
         }
     }
 
@@ -82,9 +121,10 @@ public class Staging {
         }
     }
 
-    /** Creates an empty {index} file to track staged files.
+    /** Clears the Staging directory.
+     * Creates an empty {index} file to track staged files.
      * Also creates an empty {removed} file to track files staged for removal.
-     * If either one exists, it is reset.
+     * If either file exists, it is reset.
      */
     public static void resetStaging() {
         clearStaging();
@@ -112,7 +152,7 @@ public class Staging {
     /** Checks if any files have been staged. Exits with error message if there are
      * no staged files. Used before making a commit. */
     public static void checkStaged (){
-        if (getStagedIndex().size() == 0) {
+        if (getStagedIndex().size() == 0 && getRemoved().size() == 0) {
             Utils.printAndExit("No changes added to the commit.");
         }
     }
@@ -123,7 +163,7 @@ public class Staging {
         return Utils.readObject(INDEX, TreeMap.class);
     }
 
-    /** Returns a list of files staged to be removed */
+    /** Returns a list of files staged to be removed. */
     @SuppressWarnings("unchecked")
     public static ArrayList<String> getRemoved() {
         return Utils.readObject(REMOVED, ArrayList.class);

@@ -24,8 +24,8 @@ public class Main {
                 if (args.length != 2) {
                     wrongOperands();
                 }
-                String fileName = args[1];
-                Repository.addFile(fileName);
+                String addedFile = args[1];
+                Repository.addFile(addedFile);
                 break;
             case "commit":
                 if (args.length != 2) {
@@ -33,6 +33,25 @@ public class Main {
                 }
                 String message = args[1];
                 Repository.commit(message);
+                break;
+            case "rm":
+                if (args.length != 2) {
+                    wrongOperands();
+                }
+                String rmFile = args[1];
+                Repository.removeFile(rmFile);
+                break;
+            case "log":
+                if (args.length != 1) {
+                    wrongOperands();
+                }
+                Repository.log();
+                break;
+            case "global-log":
+                if (args.length != 1) {
+                    wrongOperands();
+                }
+                Repository.logAll();
                 break;
             // TODO: FILL THE REST IN
         }
