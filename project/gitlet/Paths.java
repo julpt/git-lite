@@ -27,4 +27,7 @@ public final class Paths {
 
     /** File that tracks items added to the staging area. Maps file names to Blob SHA1s. */
     public static final File INDEX = Utils.join(GITLET_DIR, "index");
+
+    /** File that tracks items staged for removal. */
+    public static final File REMOVED = Utils.join(GITLET_DIR, "removed");
 }

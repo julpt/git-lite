@@ -3,6 +3,7 @@ package gitlet;
 import java.io.File;
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -49,7 +50,7 @@ public class Commit implements Serializable {
     /** The timestamp of this Commit. */
     private final Date timestamp;
 
-    /** The mapping of file names to blob references. */
+    /** The snapshot of this Commit - mapping file names to blob references. */
     private Map<String, String> fileMap;
 
     /** The SHA1s of the parents of this Commit. */
@@ -98,12 +99,32 @@ public class Commit implements Serializable {
         prefix = SHA1.substring(0,2);
     }
 
+    /** Saves this Commit to COMM_DIR, inside a folder denoted by its prefix.
+     * The name of this saved file is the SHA1 of the Commit.
+     */
     public void saveCommit() {
         File destination = Utils.join(COMM_DIR, prefix);
         destination.mkdir();
         File commFile = Utils.join(destination, SHA1);
         Utils.createFile(commFile);
         Utils.writeObject(commFile, this);
+    }
+
+    /** Creates new Commit. By default, its snapshot of files is the same as its parent's.
+     * Files staged for addition and removal are the updates to the commit.
+     *
+     * @param currentCommit current commit
+     * @param message Commit message
+     * @param added names and SHA1s of files staged for addition
+     * @param removed names of files staged for removal*/
+    public static Commit addStaged(Commit currentCommit, String message,
+                                   TreeMap<String, String> added, List<String> removed) {
+        TreeMap<String, String> newFiles = new TreeMap<>(currentCommit.fileMap);
+        for (String fileName: removed) {
+            newFiles.remove(fileName);
+        }
+        newFiles.putAll(added);
+        return new Commit(message, currentCommit.SHA1, newFiles);
     }
 
     /** Returns the Commit with the given SHA1. */

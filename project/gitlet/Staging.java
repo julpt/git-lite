@@ -1,14 +1,18 @@
 package gitlet;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.TreeMap;
 
 public class Staging {
+
     public static final File CWD = Paths.CWD;
     public static final File STAGE_DIR = Paths.STAGE_DIR;
     public static final File HEAD = Paths.HEAD;
     public static final File INDEX = Paths.INDEX;
+    public static final File REMOVED = Paths.REMOVED;
 
     /** Adds a copy of the file as it currently exists to the staging area.
      * If file is already staged, it is overwritten.
@@ -21,17 +25,23 @@ public class Staging {
      */
     public static void stageFile(String fileName) {
         Blob addedFile = new Blob(fileName);
-        TreeMap<String, String> stagedFiles = Utils.readObject(INDEX, TreeMap.class);
+        TreeMap<String, String> stagedFiles = getStagedIndex();
         File destination = Utils.join(STAGE_DIR, addedFile.getSHA1());
 
+        /* If file was staged for removal, it will be unstaged. */
+        ArrayList<String> removedFiles = getRemoved();
+        if (removedFiles.contains(fileName)) {
+            removedFiles.remove(fileName);
+            Utils.writeObject(REMOVED, removedFiles);
+        }
+
         /* Check if a version of the file is already staged. If so, it will get deleted.
-        The new version will be staged, unless it's reverting to the most recent commit. */
+        The new version will be staged, unless it is reverting to the most recent commit. */
         String stagedSHA = stagedFiles.get(fileName);
         if (stagedSHA != null) {
             Utils.join(STAGE_DIR, stagedSHA).delete();
         }
 
-        /* TODO: UNSTAGE FOR REMOVAL when you get to rm */
         /* Check if new version is the same as the one in the most recent commit.
         In that case, this version of the file isn't saved and its reference in
         the index is removed. */
@@ -50,6 +60,19 @@ public class Staging {
         }
     }
 
+    private static void removeFile(String fileName) {
+        TreeMap<String, String> stagedFiles = getStagedIndex();
+        if (stagedFiles.containsKey(fileName)) {
+            stagedFiles.remove(fileName);
+            Utils.writeObject(INDEX, stagedFiles);
+        } else {
+            ArrayList<String> removed = getRemoved();
+            if (!removed.contains(fileName)) {
+                removed.add(fileName);
+                Utils.writeObject(REMOVED, removed);
+            }
+        }
+    }
 
     /** Checks if file to be added exists. Exits program if no file is found. */
     public static void checkFileExists(String fileName) {
@@ -59,14 +82,51 @@ public class Staging {
         }
     }
 
-    /** Creates an empty index file to track staged files.
-     * If one exists, it is reset.
+    /** Creates an empty {index} file to track staged files.
+     * Also creates an empty {removed} file to track files staged for removal.
+     * If either one exists, it is reset.
      */
-    public static void resetIndex() {
+    public static void resetStaging() {
+        clearStaging();
         if (!INDEX.isFile()) {
             Utils.createFile(INDEX);
         }
         Utils.writeObject(INDEX, new TreeMap<String, String>());
+        if (!REMOVED.isFile()) {
+            Utils.createFile(REMOVED);
+        }
+        Utils.writeObject(REMOVED, new ArrayList<String>());
+    }
+
+
+    /** Deletes all files in the Staging directory. Used after a commit. */
+    private static void clearStaging() {
+        File[] stagedContents = STAGE_DIR.listFiles();
+        if (stagedContents != null) {
+            for (File stagedFile: stagedContents) {
+                stagedFile.delete();
+            }
+        }
+    }
+
+    /** Checks if any files have been staged. Exits with error message if there are
+     * no staged files. Used before making a commit. */
+    public static void checkStaged (){
+        if (getStagedIndex().size() == 0) {
+            Utils.printAndExit("No changes added to the commit.");
+        }
+    }
+
+    /** Returns a map of the staged file names and their respective SHA1s. */
+    @SuppressWarnings("unchecked")
+    public static TreeMap<String, String> getStagedIndex() {
+        return Utils.readObject(INDEX, TreeMap.class);
+    }
+
+    /** Returns a list of files staged to be removed */
+    @SuppressWarnings("unchecked")
+    public static ArrayList<String> getRemoved() {
+        return Utils.readObject(REMOVED, ArrayList.class);
     }
 
 }

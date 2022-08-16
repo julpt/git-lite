@@ -1,6 +1,8 @@
 package gitlet;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.TreeMap;
 
 // TODO: any imports you need here
 
@@ -65,8 +67,8 @@ public class Repository {
         Utils.writeContents(HEAD, "master");
         // create master branch
         addBranch("master", initial);
-        // add staging index
-        Staging.resetIndex();
+        // add files to track staged and removed files
+        Staging.resetStaging();
     }
 
     /** Adds a copy of the file as it currently exists to the staging area.
@@ -79,8 +81,38 @@ public class Repository {
      * The file will no longer be staged for removal, if it was at the time of the command.
      */
     public static void addFile(String fileName) {
+        checkInitialized();
         Staging.checkFileExists(fileName);
         Staging.stageFile(fileName);
+    }
+
+    /** Saves a snapshot of tracked files in the current commit and staging area,
+     * creating a new commit. If no files have been staged, program exits.<br>
+     *
+     * By default, each commit’s snapshot of files will be exactly the same as its parent’s;
+     * a commit will only update the contents of files it is tracking that have been staged
+     * for addition at the time of commit.<br>
+     *
+     * A commit will save and start tracking any files that were staged for addition but
+     * weren’t tracked by its parent.<br>
+     *
+     * Finally, files tracked in the current commit may be untracked in the new commit as
+     * a result being staged for removal by the rm command.
+     * */
+    public static void commit(String message) {
+        checkInitialized();
+        Staging.checkStaged();
+        Commit currentCommit = Branch.getHeadCommit();
+        TreeMap<String, String> stagedFiles = Staging.getStagedIndex();
+        ArrayList<String> removedFiles = Staging.getRemoved();
+        Commit newCommit = Commit.addStaged(currentCommit, message, stagedFiles, removedFiles);
+        for (String fileName: stagedFiles.keySet()) {
+            Blob addedFile = new Blob(fileName);
+            addedFile.saveBlob();
+        }
+        newCommit.saveCommit();
+        Branch.moveBranchHead(newCommit);
+        Staging.resetStaging();
     }
 
     /** Checks if working directory is an initialized Gitlet directory.

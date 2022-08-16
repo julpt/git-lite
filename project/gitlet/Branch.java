@@ -26,6 +26,14 @@ public class Branch {
         Utils.writeContents(branch, head.getSHA1());
     }
 
+    /** Sets given Commit as head of the current branch. */
+    public static void moveBranchHead(Commit newHead) {
+        String newHeadSHA = newHead.getSHA1();
+        String headName = Utils.readContentsAsString(HEAD);
+        File headBranch = Utils.join(HEAD_DIR, headName);
+        Utils.writeContents(headBranch, newHeadSHA);
+    }
+
     /** Returns the current head commit. */
     public static Commit getHeadCommit() {
         String headName = Utils.readContentsAsString(HEAD);

@@ -17,17 +17,22 @@ public class Main {
         String firstArg = args[0];
         switch(firstArg) {
             case "init":
-                // TODO: handle the `init` command
                 Repository.setup();
                 break;
             case "add":
-                // TODO: handle the `add [filename]` command
-                Repository.checkInitialized();
+                // TODO: handle the `add [filename]` command for removing
                 if (args.length != 2) {
                     wrongOperands();
                 }
                 String fileName = args[1];
                 Repository.addFile(fileName);
+                break;
+            case "commit":
+                if (args.length != 2) {
+                    wrongOperands();
+                }
+                String message = args[1];
+                Repository.commit(message);
                 break;
             // TODO: FILL THE REST IN
         }

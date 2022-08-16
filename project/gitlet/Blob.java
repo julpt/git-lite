@@ -51,4 +51,11 @@ public class Blob implements Serializable {
         prefix = SHA1.substring(0,2);
     }
 
+    public void saveBlob() {
+        File destination = Utils.join(BLOB_DIR, prefix);
+        destination.mkdir();
+        File newFile = Utils.join(destination, SHA1);
+        Utils.createFile(newFile);
+        Utils.writeObject(newFile, this);
+    }
 }
