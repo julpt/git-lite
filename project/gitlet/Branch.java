@@ -29,11 +29,6 @@ public class Branch {
         Utils.writeContents(headBranch, newHeadSHA);
     }
 
-    /** Makes given branch the current (HEAD) branch. */
-    public static void changeHead(String name) {
-        Utils.writeContents(HEAD, name);
-    }
-
     /** Returns the current head commit. */
     public static Commit getHeadCommit() {
         return Commit.getFromSHA(getHeadCommitSHA());

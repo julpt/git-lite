@@ -226,7 +226,7 @@ public class Repository {
             Utils.restrictedDelete(file);
         }
         branchHead.copyToCWD();
-        Branch.changeHead(branchName);
+        Utils.writeContents(HEAD, branchName);
         Staging.resetStaging();
     }
 
@@ -296,7 +296,18 @@ public class Repository {
         Branch.addBranch(name, head);
     }
 
-
+    public static void removeBranch(String name) {
+        if (name.equals(Branch.getCurrentBranchName())) {
+            Utils.printAndExit("Cannot remove the current branch.");
+        }
+        for (String branch: Utils.plainFilenamesIn(BRANCH_DIR)){
+            if (name.equals(branch)) {
+                Utils.join(BRANCH_DIR, name).delete();
+                return;
+            }
+        }
+        Utils.printAndExit("A branch with that name does not exist.");
+    }
 
 
     /* TODO: fill in the rest of this class. */

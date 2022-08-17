@@ -91,7 +91,20 @@ public class Main {
                 String branchName = args[1];
                 Repository.addBranch(branchName);
                 break;
-
+            case "rm-branch":
+                if (args.length != 2) {
+                    wrongOperands();
+                }
+                branchName = args[1];
+                Repository.removeBranch(branchName);
+                break;
+            case "reset":
+                if (args.length != 2) {
+                    wrongOperands();
+                }
+                branchName = args[1];
+                Repository.removeBranch(branchName);
+                break;
             default:
                 Utils.printAndExit("No command with that name exists.");
         }
