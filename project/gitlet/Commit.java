@@ -30,11 +30,14 @@ public class Commit implements Serializable {
      * variable is used. We've provided one example for `message`.
      */
 
+    /** The current working directory */
+    private static final File CWD = Paths.CWD;
+
     /** Path to directory that stores all Commits. */
     private static final File COMM_DIR = Paths.COMM_DIR;
 
     /** The SHA1 of this Commit. */
-    private final String SHA1;
+    private final String sha1;
 
     /** The message of this Commit. */
     private final String message;
@@ -43,7 +46,7 @@ public class Commit implements Serializable {
     private final Date timestamp;
 
     /** The snapshot of this Commit - mapping file names to blob references. */
-    private Map<String, String> snapshot;
+    private TreeMap<String, String> snapshot;
 
     /** The SHA1 of the main parent of this Commit. */
     private String mainParent;
@@ -57,7 +60,7 @@ public class Commit implements Serializable {
     /* TODO: fill in the rest of this class. */
 
     public String getSHA1() {
-        return SHA1;
+        return sha1;
     }
 
 
@@ -68,18 +71,18 @@ public class Commit implements Serializable {
      * and all commits in all repositories will trace back to it.
      * */
     public Commit() {
-        mainParent = null;
         isMerged = false;
         message = "initial commit";
-        timestamp = new Date(0);
-        SHA1 = Utils.sha1(timestamp.toString(), message);
+        mainParent = null;
         snapshot = new TreeMap<String, String>();
+        timestamp = new Date(0);
+        sha1 = Utils.sha1(timestamp.toString(), message);
     }
 
     /** Constructor for non-merged, not initial Commits.
      * @param message commit message
      * @param parent main parent's SHA1
-     * @param snapshot hash map of file names to blob references.
+     * @param snapshot mapping of file names to blob references.
      * */
     public Commit(String message, String parent, TreeMap<String, String> snapshot) {
         isMerged = false;
@@ -87,15 +90,14 @@ public class Commit implements Serializable {
         this.mainParent = parent;
         this.snapshot = snapshot;
         this.timestamp = new Date();
-        SHA1 = Utils.sha1(timestamp.toString(), message, snapshot.toString(), parent);
+        sha1 = Utils.sha1(timestamp.toString(), message, snapshot.toString(), parent);
     }
 
     /** Saves this Commit to COMM_DIR.
      * The name of this saved file is the SHA1 of the Commit.
      */
     public void saveCommit() {
-        File commFile = Utils.join(COMM_DIR, SHA1);
-        Utils.createFile(commFile);
+        File commFile = Utils.join(COMM_DIR, sha1);
         Utils.writeObject(commFile, this);
     }
 
@@ -114,39 +116,50 @@ public class Commit implements Serializable {
             newFiles.remove(fileName);
         }
         newFiles.putAll(added);
-        return new Commit(message, currentCommit.SHA1, newFiles);
+        return new Commit(message, currentCommit.sha1, newFiles);
     }
 
     /** Returns the Commit with the given SHA1. If no commit is found, prints an error message. */
-    public static Commit getFromSHA(String SHA) {
+    public static Commit getFromSHA(String sha) {
         // For abbreviated Commits
-        if (SHA.length() < 40) {
+        if (sha.length() < 40) {
             List<String> commits = Utils.plainFilenamesIn(COMM_DIR);
             for (String shaFromList: commits) {
-                if (shaFromList.startsWith(SHA)) {
-                    SHA = shaFromList;
+                if (shaFromList.startsWith(sha)) {
+                    sha = shaFromList;
                     break;
                 }
             }
         }
         try {
-            return Utils.readObject(Utils.join(COMM_DIR, SHA), Commit.class);
+            return Utils.readObject(Utils.join(COMM_DIR, sha), Commit.class);
         } catch (IllegalArgumentException e) {
             Utils.printAndExit("No commit with that id exists.");
             return null;
         }
     }
 
+    /** Copies every file tracked by this Commit to the working directory,
+     * overwriting the versions of the files that are already there if they exist.
+     */
+    public void copyToCWD() {
+        for (Map.Entry<String, String> entry: snapshot.entrySet()) {
+            String name = entry.getKey();
+            String sha = entry.getValue();
+            Blob.getFromSHA(sha).writeContentsToFile(CWD, name);
+        }
+    }
+
+    /**  */
+    public Set<String> getContents() {
+        return snapshot.keySet();
+    }
 
     /** Returns the SHA1 of a given file in this Commit. Null if file not in Commit. */
-    public String getFileSHA (String fileName) {
+    public String getFileSHA (String fileName){
         return snapshot.get(fileName);
     }
 
-    /** Returns true if this is the initial Commit, false otherwise. */
-    public boolean isInitial() {
-        return mainParent == null;
-    }
 
     /** Returns true if this commit's message is the same as the given string, false otherwise. */
     public boolean hasMessage(String message) {
@@ -169,17 +182,19 @@ public class Commit implements Serializable {
     public String toString() {
         String commit;
         if (!isMerged) {
-            commit = String.format("===%n" +
-                    "commit %1$s%n" +
-                    "Date: %2$ta %2$tb %2$te %2$tH:%2$tM:%2$tS %2$tY %2$tz%n" +
-                    "%3$s%n", SHA1, timestamp, message);
+            commit = String.format("===%n"
+                    + "commit %1$s%n"
+                    + "Date: %2$ta %2$tb %2$te %2$tH:%2$tM:%2$tS %2$tY %2$tz%n"
+                    + "%3$s%n",
+                    sha1, timestamp, message);
         } else {
-            commit = String.format("===%n" +
-                            "commit %1$s%n" +
-                            "Merge: %4$s %5$s%n" +
-                            "Date: %2$ta %2$tb %2$te %2$tH:%2$tM:%2$tS %2$tY %2$tz%n" +
-                            "%3$s%n", SHA1, timestamp, message, mainParent.substring(0, 7),
-                    mergedParent.substring(0,7));
+            commit = String.format("===%n"
+                    + "commit %1$s%n"
+                    + "Merge: %4$s %5$s%n"
+                    + "Date: %2$ta %2$tb %2$te %2$tH:%2$tM:%2$tS %2$tY %2$tz%n"
+                    + "%3$s%n",
+                    sha1, timestamp, message, mainParent.substring(0, 7),
+                    mergedParent.substring(0, 7));
         }
         return commit;
     }

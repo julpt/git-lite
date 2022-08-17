@@ -19,7 +19,7 @@ public class Staging {
     public static final File INDEX = Paths.INDEX;
 
     /** File that tracks items staged for removal. */
-     public static final File REMOVED = Paths.REMOVED;
+    public static final File REMOVED = Paths.REMOVED;
 
 
     /** Adds a copy of the file as it currently exists to the staging area.
@@ -38,7 +38,7 @@ public class Staging {
 
         /* If file was staged for removal, it will be unstaged. */
         TreeSet<String> removedFiles = getRemoved();
-        if (removedFiles.remove(fileName)) {;
+        if (removedFiles.remove(fileName)) {
             Utils.writeObject(REMOVED, removedFiles);
         }
 
@@ -49,7 +49,7 @@ public class Staging {
             Utils.join(STAGE_DIR, stagedSHA).delete();
         }
 
-        /* Check if new version is the same as the one in the current commit.
+        /* Check if the new version is the same as the one in the current commit.
         In that case, this version of the file isn't saved and its reference in
         the index is removed.
         Otherwise, the file is added to the staging area and to the index. */
@@ -59,7 +59,6 @@ public class Staging {
             Utils.writeObject(INDEX, stagedFiles);
         } else {
             /* Add file to Staging area. */
-            Utils.createFile(destination);
             Utils.writeObject(destination, addedFile);
 
             /* Add file name and SHA1 to index. */
@@ -110,14 +109,6 @@ public class Staging {
         }
     }
 
-    /** Checks if file to be added exists. Exits with error message if no file is found. */
-    public static void checkFileExists(String fileName) {
-        File source = Utils.join(CWD, fileName);
-        if (!source.isFile()) {
-            Utils.printAndExit("File does not exist.");
-        }
-    }
-
     /** Clears the Staging directory.
      * Creates an empty {index} file to track files staged for addition.
      * Also creates an empty {removed} file to track files staged for removal.
@@ -125,13 +116,7 @@ public class Staging {
      */
     public static void resetStaging() {
         clearStaging();
-        if (!INDEX.isFile()) {
-            Utils.createFile(INDEX);
-        }
         Utils.writeObject(INDEX, new TreeMap<String, String>());
-        if (!REMOVED.isFile()) {
-            Utils.createFile(REMOVED);
-        }
         Utils.writeObject(REMOVED, new TreeSet<String>());
     }
 
@@ -148,7 +133,7 @@ public class Staging {
 
     /** Checks if any files have been staged. Exits with error message if there are
      * no staged files. Used before making a commit. */
-    public static void checkStaged (){
+    public static void checkStaged() {
         if (getStagedIndex().size() == 0 && getRemoved().size() == 0) {
             Utils.printAndExit("No changes added to the commit.");
         }
@@ -167,8 +152,8 @@ public class Staging {
     }
 
     /** Returns the Staged Blob with the given SHA1. */
-    public static Blob getStagedFile(String SHA) {
-        return Utils.readObject(Utils.join(STAGE_DIR, SHA), Blob.class);
+    public static Blob getStagedFile(String sha) {
+        return Utils.readObject(Utils.join(STAGE_DIR, sha), Blob.class);
     }
 
 }

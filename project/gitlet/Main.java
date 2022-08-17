@@ -13,6 +13,7 @@ public class Main {
     public static void main(String[] args) {
         if (args.length == 0) {
             System.out.println("Please enter a command.");
+            System.exit(0);
         }
         String firstArg = args[0];
         switch(firstArg) {
@@ -83,7 +84,16 @@ public class Main {
                     wrongOperands();
                 }
                 break;
-            // TODO: FILL THE REST IN
+            case "branch":
+                if (args.length != 2) {
+                    wrongOperands();
+                }
+                String branchName = args[1];
+                Repository.addBranch(branchName);
+                break;
+
+            default:
+                Utils.printAndExit("No command with that name exists.");
         }
     }
 

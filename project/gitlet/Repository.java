@@ -1,6 +1,7 @@
 package gitlet;
 
 import java.io.File;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.List;
@@ -28,7 +29,7 @@ public class Repository {
     public static final File BLOB_DIR = Paths.BLOB_DIR;
 
     /** Directory inside .gitlet for storing pointers to branches. */
-    public static final File HEAD_DIR = Paths.HEAD_DIR;
+    public static final File BRANCH_DIR = Paths.BRANCH_DIR;
 
     /** Staging directory. Stores added files until commit. */
     public static final File STAGE_DIR = Paths.STAGE_DIR;
@@ -45,22 +46,21 @@ public class Repository {
     public static void setup() {
         boolean created = GITLET_DIR.mkdir();
         if (!created) {
-            Utils.printAndExit("A Gitlet version-control system already exists " +
-                    "in the current directory.");
+            Utils.printAndExit("A Gitlet version-control system already exists "
+                    + "in the current directory.");
 
         }
         COMM_DIR.mkdirs();
         BLOB_DIR.mkdirs();
-        HEAD_DIR.mkdirs();
+        BRANCH_DIR.mkdirs();
         STAGE_DIR.mkdirs();
         // create initial commit
         Commit initial = new Commit();
         initial.saveCommit();
         // create and set head file
-        Utils.createFile(HEAD);
         Utils.writeContents(HEAD, "master");
         // create master branch
-        addBranch("master", initial);
+        Branch.addBranch("master", initial);
         // add files to track staged and removed files
         Staging.resetStaging();
     }
@@ -76,7 +76,15 @@ public class Repository {
      */
     public static void addFile(String fileName) {
         checkInitialized();
-        Staging.checkFileExists(fileName);
+        TreeSet<String> removed = Staging.getRemoved();
+        if (removed.contains(fileName)) {
+            Commit head = Branch.getHeadCommit();
+            String sha = head.getFileSHA(fileName);
+            Blob.getFromSHA(sha).writeContentsToFile(CWD, fileName);
+        }
+        if (!Utils.join(CWD, fileName).isFile()) {
+            Utils.printAndExit("File does not exist.");
+        }
         Staging.stageFile(fileName);
     }
 
@@ -152,13 +160,18 @@ public class Repository {
     public static void find(String message) {
         checkInitialized();
         List<String> commits = Utils.plainFilenamesIn(COMM_DIR);
+        boolean found = false;
         if (commits != null) {
             for (String sha: commits) {
                 Commit comm = (Commit.getFromSHA(sha));
                 if (comm.hasMessage(message)) {
                     System.out.println(sha);
+                    found = true;
                 }
             }
+        }
+        if (!found) {
+            Utils.printAndExit("Found no commit with that message.");
         }
     }
 
@@ -196,8 +209,27 @@ public class Repository {
      * The staging area is cleared, unless the checked-out branch is the current branch.
      */
     public static void checkoutBranch(String branchName) {
-
+        checkInitialized();
+        Commit branchHead = Branch.getCommitFromBranch(branchName);
+        Commit currentHead = Branch.getHeadCommit();
+        Set<String> trackedFiles = currentHead.getContents();
+        /* If a working file is untracked in the current branch and would be overwritten
+        by the checkout, prints an error message. */
+        for (String fileName: branchHead.getContents()) {
+            if (Utils.join(CWD, fileName).isFile() && !trackedFiles.contains(fileName)) {
+                Utils.printAndExit("There is an untracked file in the way; "
+                        + "delete it, or add and commit it first.");
+            }
+        }
+        for (String name: trackedFiles) {
+            File file = Utils.join(CWD, name);
+            Utils.restrictedDelete(file);
+        }
+        branchHead.copyToCWD();
+        Branch.changeHead(branchName);
+        Staging.resetStaging();
     }
+
 
     /** Displays what branches currently exist, and marks the current branch with a *.
      * Also displays what files have been staged for addition or removal.
@@ -213,7 +245,7 @@ public class Repository {
     private static void printBranches() {
         String currentBranch = Branch.getCurrentBranchName();
         System.out.println("=== Branches ===");
-        List<String> branches = Utils.plainFilenamesIn(HEAD_DIR);
+        List<String> branches = Utils.plainFilenamesIn(BRANCH_DIR);
         for (String branch: branches) {
             if (currentBranch.equals(branch)) {
                 branch = "*" + branch;
@@ -254,16 +286,13 @@ public class Repository {
      * Prints error message if it is not.
      */
     private static void checkInitialized() {
-        if(!GITLET_DIR.exists()) {
+        if (!GITLET_DIR.exists()) {
             Utils.printAndExit("Not in an initialized Gitlet directory.");
         }
     }
 
     public static void addBranch(String name) {
-        Branch.addBranch(name);
-    }
-
-    private static void addBranch(String name, Commit head) {
+        Commit head = Branch.getHeadCommit();
         Branch.addBranch(name, head);
     }
 

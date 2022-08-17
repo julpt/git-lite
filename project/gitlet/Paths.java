@@ -17,7 +17,7 @@ public final class Paths {
     public static final File BLOB_DIR = Utils.join(GITLET_DIR, "blobs");
 
     /** Directory inside .gitlet for storing pointers to branches. */
-    public static final File HEAD_DIR = Utils.join(GITLET_DIR, "heads");
+    public static final File BRANCH_DIR = Utils.join(GITLET_DIR, "heads");
 
     /** Directory inside .gitlet for storing files staged for addition. */
     public static final File STAGE_DIR = Utils.join(GITLET_DIR, "staging");

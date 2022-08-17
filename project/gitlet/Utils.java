@@ -244,15 +244,4 @@ class Utils {
         System.out.println(text);
         System.exit(0);
     }
-
-    /** Helper method to create files */
-    public static void createFile(File file) {
-        try {
-            file.createNewFile();
-        } catch (Exception e) {
-            System.out.printf("Caught exception %s when creating file.%n", e.toString());
-            System.exit(0);
-        }
-    }
-
 }
