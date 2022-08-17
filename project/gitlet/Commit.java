@@ -51,9 +51,6 @@ public class Commit implements Serializable {
     /** The SHA1 of the second parent of this Commit, if it exists. Null otherwise */
     private String mergedParent;
 
-    /** True for the initial Commit, false for any other Commit. */
-    private final boolean isInitial;
-
     /** True if this Commit is the result of a merge, false otherwise. */
     private final boolean isMerged;
 
@@ -71,7 +68,7 @@ public class Commit implements Serializable {
      * and all commits in all repositories will trace back to it.
      * */
     public Commit() {
-        isInitial = true;
+        mainParent = null;
         isMerged = false;
         message = "initial commit";
         timestamp = new Date(0);
@@ -85,7 +82,6 @@ public class Commit implements Serializable {
      * @param snapshot hash map of file names to blob references.
      * */
     public Commit(String message, String parent, TreeMap<String, String> snapshot) {
-        isInitial = false;
         isMerged = false;
         this.message = message;
         this.mainParent = parent;
@@ -149,7 +145,7 @@ public class Commit implements Serializable {
 
     /** Returns true if this is the initial Commit, false otherwise. */
     public boolean isInitial() {
-        return isInitial;
+        return mainParent == null;
     }
 
     /** Returns true if this commit's message is the same as the given string, false otherwise. */
@@ -161,12 +157,12 @@ public class Commit implements Serializable {
      * tree until the initial commit, following the first parent commit links, ignoring any
      * second parents found in merge commits. */
     public void printLog() {
-        if (isInitial) {
-            System.out.print(this);
-            return;
+        Commit current = this;
+        while (current.mainParent != null) {
+            System.out.println(current);
+            current = Commit.getFromSHA(current.mainParent);
         }
-        System.out.println(this);
-        getFromSHA(mainParent).printLog();
+        System.out.print(current);
     }
 
     @Override
@@ -175,14 +171,14 @@ public class Commit implements Serializable {
         if (!isMerged) {
             commit = String.format("===%n" +
                     "commit %1$s%n" +
-                    "Date: %2$ta %2$tb %2$te %2$tk:%2$tM:%2$tS %2$tY %2$tz%n" +
+                    "Date: %2$ta %2$tb %2$te %2$tH:%2$tM:%2$tS %2$tY %2$tz%n" +
                     "%3$s%n", SHA1, timestamp, message);
         } else {
             commit = String.format("===%n" +
-                    "commit %1$s%n" +
-                    "Merge: %4$s %5$s%n" +
-                    "Date: %2$ta %2$tb %2$te %2$tk:%2$tM:%2$tS %2$tY %2$tz%n" +
-                    "%3$s%n", SHA1, timestamp, message, mainParent.substring(0, 7),
+                            "commit %1$s%n" +
+                            "Merge: %4$s %5$s%n" +
+                            "Date: %2$ta %2$tb %2$te %2$tH:%2$tM:%2$tS %2$tY %2$tz%n" +
+                            "%3$s%n", SHA1, timestamp, message, mainParent.substring(0, 7),
                     mergedParent.substring(0,7));
         }
         return commit;

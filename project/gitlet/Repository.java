@@ -95,6 +95,9 @@ public class Repository {
      * */
     public static void commit(String message) {
         checkInitialized();
+        if (message.equals("")) {
+            Utils.printAndExit("Please enter a commit message.");
+        }
         Staging.checkStaged();
         Commit currentCommit = Branch.getHeadCommit();
         TreeMap<String, String> stagedFiles = Staging.getStagedIndex();
@@ -248,7 +251,7 @@ public class Repository {
     }
 
     /** Checks if working directory is an initialized Gitlet directory.
-     * Exits if it is not.
+     * Prints error message if it is not.
      */
     private static void checkInitialized() {
         if(!GITLET_DIR.exists()) {
