@@ -1,7 +1,9 @@
 package gitlet;
 
 import java.io.File;
-import java.util.*;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.List;
 
 // TODO: any imports you need here
 
@@ -9,16 +11,9 @@ import java.util.*;
  *  TODO: It's a good idea to give a description here of what else this Class
  *  does at a high level.
  *
- *  @author TODO
+ *  @author jul
  */
 public class Repository {
-    /**
-     * TODO: add instance variables here.
-     *
-     * List all instance variables of the Repository class here with a useful
-     * comment above them describing what that variable represents and how that
-     * variable is used. We've provided two examples for you.
-     */
 
     /** The current working directory. */
     public static final File CWD = Paths.CWD;
@@ -86,14 +81,14 @@ public class Repository {
     }
 
     /** Saves a snapshot of tracked files in the current commit and staging area,
-     * creating a new commit. If no files have been staged, program exits.<br>
+     * creating a new commit. If no files have been staged, program exits.
      *
      * By default, each commit’s snapshot of files will be exactly the same as its parent’s;
      * a commit will only update the contents of files it is tracking that have been staged
-     * for addition at the time of commit.<br>
+     * for addition at the time of commit.
      *
      * A commit will save and start tracking any files that were staged for addition but
-     * weren’t tracked by its parent.<br>
+     * were not tracked by its parent.
      *
      * Finally, files tracked in the current commit may be untracked in the new commit as
      * a result being staged for removal by the rm command.
@@ -105,8 +100,8 @@ public class Repository {
         TreeMap<String, String> stagedFiles = Staging.getStagedIndex();
         TreeSet<String> removedFiles = Staging.getRemoved();
         Commit newCommit = Commit.addStaged(currentCommit, message, stagedFiles, removedFiles);
-        for (String fileName: stagedFiles.keySet()) {
-            Blob addedFile = new Blob(fileName);
+        for (String stagedFileSHA: stagedFiles.values()) {
+            Blob addedFile = Staging.getStagedFile(stagedFileSHA);
             addedFile.saveBlob();
         }
         newCommit.saveCommit();
@@ -164,6 +159,43 @@ public class Repository {
         }
     }
 
+    /** Takes the version of the file as it exists in the head commit and puts it in the working
+     * directory, overwriting the version of the file that’s already there if there is one.
+     * The new version of the file is not staged.
+     */
+    public static void checkoutFile(String fileName) {
+        checkInitialized();
+        String currentSHA = Branch.getHeadCommitSHA();
+        checkoutFromCommit(currentSHA, fileName);
+    }
+
+    /** Takes the version of the file as it exists in the commit with the given id,
+     * and puts it in the working directory, overwriting the version of the file
+     * that’s already there if there is one.
+     * The new version of the file is not staged.
+     */
+    public static void checkoutFromCommit(String commitID, String fileName) {
+        checkInitialized();
+        Commit comm = Commit.getFromSHA(commitID);
+        String fileSHA = comm.getFileSHA(fileName);
+        if (fileSHA == null) {
+            Utils.printAndExit("File does not exist in that commit.");
+        }
+        Blob fileBlob = Blob.getFromSHA(fileSHA);
+        fileBlob.writeContentsToFile(CWD, fileName);
+    }
+
+    /** Takes all files in the commit at the head of the given branch, and puts them in the working
+     * directory, overwriting the versions of the files that are already there if they exist.
+     * At the end of this command, the given branch will be considered the current branch. (HEAD)
+     * Any files that are tracked in the current branch but are not present in the checked-out
+     * branch are deleted.
+     * The staging area is cleared, unless the checked-out branch is the current branch.
+     */
+    public static void checkoutBranch(String branchName) {
+
+    }
+
     /** Displays what branches currently exist, and marks the current branch with a *.
      * Also displays what files have been staged for addition or removal.
      * TODO: extra credit not staged and untracked*/
@@ -193,8 +225,8 @@ public class Repository {
         // Staged for addition
         System.out.println("=== Staged Files ===");
         TreeMap<String, String> added = Staging.getStagedIndex();
-        for (Map.Entry<String, String> entry: added.entrySet()) {
-            System.out.println(entry.getKey());
+        for (String fileName: added.keySet()) {
+            System.out.println(fileName);
         }
         System.out.println();
 

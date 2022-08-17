@@ -15,25 +15,22 @@ public class Main {
             System.out.println("Please enter a command.");
         }
         String firstArg = args[0];
-        String fileName;
-        String message;
         switch(firstArg) {
             case "init":
                 Repository.setup();
                 break;
             case "add":
-                // TODO: handle the `add [filename]` command for removing
                 if (args.length != 2) {
                     wrongOperands();
                 }
-                fileName = args[1];
+                String fileName = args[1];
                 Repository.addFile(fileName);
                 break;
             case "commit":
                 if (args.length != 2) {
                     wrongOperands();
                 }
-                message = args[1];
+                String message = args[1];
                 Repository.commit(message);
                 break;
             case "rm":
@@ -67,6 +64,24 @@ public class Main {
                     wrongOperands();
                 }
                 Repository.status();
+                break;
+            case "checkout":
+                if (args.length == 2) {
+                    // Usage: java gitlet.Main checkout [branch name]
+                    String branch = args[1];
+                    Repository.checkoutBranch(branch);
+                } else if (args.length == 3 && args[1].equals("--")) {
+                    // Usage: java gitlet.Main checkout -- [file name]
+                    fileName = args[2];
+                    Repository.checkoutFile(fileName);
+                } else if (args.length == 4 && args[2].equals("--")) {
+                    // Usage: java gitlet.Main checkout [commit id] -- [file name]
+                    String commitID = args[1];
+                    fileName = args[3];
+                    Repository.checkoutFromCommit(commitID, fileName);
+                } else {
+                    wrongOperands();
+                }
                 break;
             // TODO: FILL THE REST IN
         }

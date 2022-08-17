@@ -36,10 +36,14 @@ public class Branch {
 
     /** Returns the current head commit. */
     public static Commit getHeadCommit() {
+        return Commit.getFromSHA(getHeadCommitSHA());
+    }
+
+    /** Returns the SHA1 of the current head commit. */
+    public static String getHeadCommitSHA() {
         String headName = Utils.readContentsAsString(HEAD);
         File headBranch = Utils.join(HEAD_DIR, headName);
-        String headSHA = Utils.readContentsAsString(headBranch);
-        return Commit.getFromSHA(headSHA);
+        return Utils.readContentsAsString(headBranch);
     }
 
     public static String getCurrentBranchName() {

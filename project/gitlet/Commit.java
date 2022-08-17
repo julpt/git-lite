@@ -121,10 +121,26 @@ public class Commit implements Serializable {
         return new Commit(message, currentCommit.SHA1, newFiles);
     }
 
-    /** Returns the Commit with the given SHA1. */
+    /** Returns the Commit with the given SHA1. If no commit is found, prints an error message. */
     public static Commit getFromSHA(String SHA) {
-        return Utils.readObject(Utils.join(COMM_DIR, SHA), Commit.class);
+        // For abbreviated Commits
+        if (SHA.length() < 40) {
+            List<String> commits = Utils.plainFilenamesIn(COMM_DIR);
+            for (String shaFromList: commits) {
+                if (shaFromList.startsWith(SHA)) {
+                    SHA = shaFromList;
+                    break;
+                }
+            }
+        }
+        try {
+            return Utils.readObject(Utils.join(COMM_DIR, SHA), Commit.class);
+        } catch (IllegalArgumentException e) {
+            Utils.printAndExit("No commit with that id exists.");
+            return null;
+        }
     }
+
 
     /** Returns the SHA1 of a given file in this Commit. Null if file not in Commit. */
     public String getFileSHA (String fileName) {
@@ -145,10 +161,11 @@ public class Commit implements Serializable {
      * tree until the initial commit, following the first parent commit links, ignoring any
      * second parents found in merge commits. */
     public void printLog() {
-        System.out.println(this);
         if (isInitial) {
+            System.out.print(this);
             return;
         }
+        System.out.println(this);
         getFromSHA(mainParent).printLog();
     }
 
@@ -163,7 +180,7 @@ public class Commit implements Serializable {
         } else {
             commit = String.format("===%n" +
                     "commit %1$s%n" +
-                    "Merge: %4$s %5$s" +
+                    "Merge: %4$s %5$s%n" +
                     "Date: %2$ta %2$tb %2$te %2$tk:%2$tM:%2$tS %2$tY %2$tz%n" +
                     "%3$s%n", SHA1, timestamp, message, mainParent.substring(0, 7),
                     mergedParent.substring(0,7));

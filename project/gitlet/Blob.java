@@ -15,6 +15,9 @@ import java.io.Serializable;
  */
 public class Blob implements Serializable {
 
+    /** The current working directory. */
+    public static final File CWD = Paths.CWD;
+
     /** Path to directory that stores all Blobs. */
     private static final File BLOB_DIR = Paths.BLOB_DIR;
 
@@ -22,14 +25,6 @@ public class Blob implements Serializable {
      * If two Blobs have the same SHA1, we assume their contents are the same.
      */
     private final String SHA1;
-
-    /** The first two characters in the Blob's SHA1.
-     * Used to create a folder inside BLOB_DIR to store this commit.
-     */
-    private final String prefix;
-
-    /** The name of the file in this Blob. */
-    private final String name;
 
     /** The contents of the Blob. */
     private final byte[] contents;
@@ -40,30 +35,34 @@ public class Blob implements Serializable {
         return SHA1;
     }
 
-    /** Returns the prefix of this Blob. */
-    public String getPrefix() {
-        return prefix;
-    }
-
     /** Creates a Blob of the given file.
-     * @param fileName name of the file
+     * @param fileName name of the file, which must be in the current working directory.
      */
     public Blob(String fileName) {
-        File target = Utils.join(Paths.CWD, fileName);
+        File target = Utils.join(CWD, fileName);
         contents = Utils.readContents(target);
-        name = fileName;
         SHA1 = Utils.sha1(contents);
-        prefix = SHA1.substring(0,2);
     }
 
-    /** Saves this Blob to BLOB_DIR, inside a folder denoted by its prefix.
+    /** Saves this Blob to BLOB_DIR.
      * The name of this saved file is the SHA1 of the Blob.
      */
     public void saveBlob() {
-        File destination = Utils.join(BLOB_DIR, prefix);
-        destination.mkdir();
-        File newFile = Utils.join(destination, SHA1);
+        File newFile = Utils.join(BLOB_DIR, SHA1);
         Utils.createFile(newFile);
         Utils.writeObject(newFile, this);
+    }
+
+    /** Returns the Blob with the given SHA1. */
+    public static Blob getFromSHA(String SHA) {
+        return Utils.readObject(Utils.join(BLOB_DIR, SHA), Blob.class);
+    }
+
+    public void writeContentsToFile(File directory, String fileName) {
+        File file = Utils.join(directory, fileName);
+        if (!file.isFile()) {
+            Utils.createFile(file);
+        }
+        Utils.writeContents(file, contents);
     }
 }

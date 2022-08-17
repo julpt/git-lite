@@ -23,7 +23,7 @@ public class Staging {
 
 
     /** Adds a copy of the file as it currently exists to the staging area.
-     * If file is already staged, it is overwritten.
+     * If the file is already staged, it is overwritten.
      *
      * If the current working version of the file is identical to the version
      * in the current commit, it won't be staged, and will be removed from the
@@ -51,7 +51,8 @@ public class Staging {
 
         /* Check if new version is the same as the one in the current commit.
         In that case, this version of the file isn't saved and its reference in
-        the index is removed. */
+        the index is removed.
+        Otherwise, the file is added to the staging area and to the index. */
         String currentSHA = Branch.getHeadCommit().getFileSHA(fileName);
         if (addedFile.getSHA1().equals(currentSHA)) {
             stagedFiles.remove(fileName);
@@ -61,7 +62,7 @@ public class Staging {
             Utils.createFile(destination);
             Utils.writeObject(destination, addedFile);
 
-            /* Add file name and SHA1 to index, then save index. */
+            /* Add file name and SHA1 to index. */
             stagedFiles.put(fileName, addedFile.getSHA1());
             Utils.writeObject(INDEX, stagedFiles);
         }
@@ -97,8 +98,8 @@ public class Staging {
         return false;
     }
 
-    /** Unstage the file if it is currently staged for addition.
-     * If the file is tracked in the current commit, stage it for removal and remove the file
+    /** Unstages the file if it is currently staged for addition.
+     * If the file is tracked in the current commit, stages it for removal and removes the file
      * from the working directory if the user has not already done so.<br><br>
      *
      * If the file is neither staged nor tracked by the head commit, prints an error message.
@@ -109,7 +110,7 @@ public class Staging {
         }
     }
 
-    /** Checks if file to be added exists. Exits program if no file is found. */
+    /** Checks if file to be added exists. Exits with error message if no file is found. */
     public static void checkFileExists(String fileName) {
         File source = Utils.join(CWD, fileName);
         if (!source.isFile()) {
@@ -118,9 +119,9 @@ public class Staging {
     }
 
     /** Clears the Staging directory.
-     * Creates an empty {index} file to track staged files.
+     * Creates an empty {index} file to track files staged for addition.
      * Also creates an empty {removed} file to track files staged for removal.
-     * If either file exists, it is reset.
+     * If these files exist, they are reset.
      */
     public static void resetStaging() {
         clearStaging();
@@ -163,6 +164,11 @@ public class Staging {
     @SuppressWarnings("unchecked")
     public static TreeSet<String> getRemoved() {
         return Utils.readObject(REMOVED, TreeSet.class);
+    }
+
+    /** Returns the Staged Blob with the given SHA1. */
+    public static Blob getStagedFile(String SHA) {
+        return Utils.readObject(Utils.join(STAGE_DIR, SHA), Blob.class);
     }
 
 }
