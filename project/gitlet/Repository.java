@@ -63,8 +63,7 @@ public class Repository {
      * in the current commit, it won't be staged, and will be removed from the
      * staging area if it is already there.
      *
-     * The file will no longer be staged for removal, if it was at the time of the command.
-     */
+     * The file will no longer be staged for removal, if it was at the time of the command. */
     public static void addFile(String fileName) {
         checkInitialized();
         TreeSet<String> removed = Staging.getRemoved();
@@ -208,15 +207,16 @@ public class Repository {
 
 
     /** Displays what branches currently exist, and marks the current branch with a *.
-     * Also displays what files have been staged for addition or removal. */
+     * Also displays what files have been staged for addition or removal, as well as
+     * modified and untracked files. */
     public static void status() {
         checkInitialized();
         printBranches();
         printStaged();
-        printExtraCredit();
+        printModifiedAndUntracked();
     }
 
-    /** Prints what branches currently exist, and marks the current branch with a *. */
+    /** Prints what branches currently exist, and marks the current branch with a "*". */
     private static void printBranches() {
         String currentBranch = Branch.getCurrentBranchName();
         System.out.println("=== Branches ===");
@@ -249,11 +249,64 @@ public class Repository {
         System.out.println();
     }
 
-    /** Placeholder: modifications not staged and untracked files */
-    private static void printExtraCredit() {
+    /** Prints what files in the current directory differ from the current commit or are
+     * not tracked by it. */
+    private static void printModifiedAndUntracked() {
+        TreeMap<String, String> tracked = Branch.getHeadCommit().getSnapshot();
+        TreeSet<String> modified = new TreeSet<>();
+        TreeMap<String, String> added = Staging.getStagedIndex();
+        TreeSet<String> removed = Staging.getRemoved();
+        List<String> files = Utils.plainFilenamesIn(CWD);
+
         System.out.println("=== Modifications Not Staged For Commit ===");
+        // A file in the working directory is modified but not staged if it is:
+        //      (1) Tracked in the current commit, changed in the working directory but not staged;
+        //      (2) Staged for addition, but with different contents than in the working directory;
+        //      (3) Staged for addition, but deleted in the working directory; or
+        //      (4) Not staged for removal, but tracked in the current commit and deleted from the
+        //      working directory.
+        for (String fileName: files) {
+            // compare file contents
+            Blob thisFile = new Blob(fileName);
+            if (tracked.containsKey(fileName)
+                    && !thisFile.getSHA1().equals(tracked.get(fileName))
+                    && !added.containsKey(fileName)) {
+                // case 1
+                modified.add(fileName + " (modified)");
+            } else if (added.containsKey(fileName)
+                    && !thisFile.getSHA1().equals(added.get(fileName))) {
+                // case 2
+                modified.add(fileName + " (modified)");
+            }
+        }
+        // case 3
+        for (String fileName: added.keySet()) {
+            if (!files.contains(fileName)) {
+                modified.add(fileName + " (deleted)");
+            }
+        }
+        // case 4
+        for (String fileName: tracked.keySet()) {
+            if (!files.contains(fileName)
+                    && !removed.contains(fileName)) {
+                modified.add(fileName + " (deleted)");
+            }
+        }
+        for (String m: modified) {
+            System.out.println(m);
+        }
         System.out.println();
+
         System.out.println("=== Untracked Files ===");
+        // Untracked files are files present in the working directory but neither staged for
+        // addition nor tracked. This includes files that have been staged for removal, but
+        // then re-created without Gitlet’s knowledge.
+        for (String fileName: files) {
+            if ((!added.containsKey(fileName) && !tracked.containsKey(fileName))
+                    || removed.contains(fileName)) {
+                System.out.println(fileName);
+            }
+        }
         System.out.println();
     }
 
@@ -288,7 +341,7 @@ public class Repository {
     }
 
     /** Checks out all the files tracked by the given commit. Removes tracked files that are
-     * not present in that commit. Also moves the current branch’s head to that commit node.  */
+     * not present in that commit. Also moves the current branch’s head to that commit node. */
     public static void reset(String commitID) {
         checkInitialized();
         Commit target = Commit.getFromSHA(commitID);
@@ -350,18 +403,86 @@ public class Repository {
         }
         checkUntrackedConflicts(given, current);
 
-        // Any files that have been modified in the given branch since the split point, but not
-        // modified in the current branch since the split point should be changed to their versions
-        // in the given branch (checked out from the commit at the front of the given branch).
-        // These files will then all be automatically staged.
-        Set<String> givenFiles = given.getContents();
-        Set<String> currentFiles = current.getContents();
-        Set<String> splitFiles = split.getContents();
+        // If there are no uncommitted changes, begin merging.
+        // Use sets to keep track of files in the three referenced commits.
+        // Use a TreeMap to build the snapshot of the merged commit, starting from the snapshot of
+        // the split point.
+        TreeSet<String> givenFiles = new TreeSet<>(given.getContents());
+        TreeSet<String> currentFiles = new TreeSet<>(current.getContents());
+        TreeSet<String> splitFiles = new TreeSet<>(split.getContents());
         TreeMap<String, String> mergeMap = new TreeMap<>(split.getSnapshot());
-        // Handle files from given commit:
+
+        mergeFromCurrent(currentFiles, givenFiles, splitFiles, current, mergeMap);
+        mergeSameInBoth(currentFiles, givenFiles, splitFiles, current, given, split, mergeMap);
+        mergeFromGiven(currentFiles, givenFiles, splitFiles, current, given, split, mergeMap);
+        mergeOnlyPresentInOne(currentFiles, givenFiles, splitFiles,
+                current, given, split, mergeMap);
+
+        boolean hasConflicts = mergeConflicts(currentFiles, givenFiles, splitFiles,
+                current, given, split, mergeMap);
+
+        Commit mergedCommit = new Commit(branchName, current.getSHA1(), given.getSHA1(), mergeMap);
+        mergedCommit.saveCommit();
+        Branch.moveBranchHead(mergedCommit);
+        Staging.resetStaging();
+        if (hasConflicts) {
+            System.out.println("Encountered a merge conflict.");
+        }
+    }
+
+    /** Any files that were not present at the split point and are present only in the current
+     * branch should remain as they are. Adds them to the merged commit's snapshot.*/
+    private static void mergeFromCurrent(TreeSet<String> currentFiles,
+                                         TreeSet<String> givenFiles,
+                                         TreeSet<String> splitFiles,
+                                         Commit current,
+                                         TreeMap<String, String> mergeMap) {
+
+        Set<String> filesInCurrent = new TreeSet<>(currentFiles);
+        filesInCurrent.removeAll(splitFiles);
+        filesInCurrent.removeAll(givenFiles);
+        for (String fileName : filesInCurrent) {
+            mergeMap.put(fileName, current.getFileSHA(fileName));
+        }
+    }
+
+    /** Any files that have been modified in both the current and given branch in the same way
+     * (i.e., both files now have the same content or were both removed) are left unchanged
+     * by the merge. */
+    private static void mergeSameInBoth(TreeSet<String> currentFiles,
+                                        TreeSet<String> givenFiles,
+                                        TreeSet<String> splitFiles,
+                                        Commit current, Commit given, Commit split,
+                                        TreeMap<String, String> mergeMap) {
+
+        Set<String> filesInCurrAndGiven = new TreeSet<>(currentFiles);
+        filesInCurrAndGiven.retainAll(givenFiles);
+        // Same file in current and given, different or absent at split point
+        for (String fileName: filesInCurrAndGiven) {
+            if (current.getFileSHA(fileName).equals(given.getFileSHA(fileName))) {
+                if (!current.getFileSHA(fileName).equals(split.getFileSHA(fileName))) {
+                    mergeMap.put(fileName, current.getFileSHA(fileName));
+                }
+            }
+        }
+        // File absent in current and given commits, but present at split point
+        for (String fileName: splitFiles) {
+            if (!currentFiles.contains(fileName) && !givenFiles.contains(fileName)) {
+                mergeMap.remove(fileName);
+            }
+        }
+    }
+
+    /** Stages non-conflicting files from the given branch. */
+    private static void mergeFromGiven(TreeSet<String> currentFiles,
+                                       TreeSet<String> givenFiles,
+                                       TreeSet<String> splitFiles,
+                                       Commit current, Commit given, Commit split,
+                                       TreeMap<String, String> mergeMap) {
+
         for (String fileName: givenFiles) {
             String sha = given.getFileSHA(fileName);
-            // Files present in current commit and split point:
+            // Files present in current commit and at split point:
             if (currentFiles.contains(fileName) && splitFiles.contains(fileName)) {
                 String shaAtCurrent = current.getFileSHA(fileName);
                 String shaAtSplit = split.getFileSHA(fileName);
@@ -382,7 +503,14 @@ public class Repository {
                 addFile(fileName);
             }
         }
-        // Handle files present at split point, but absent in the given branch:
+    }
+
+    /** Handles files present at split point, unchanged in one branch and removed in the other. */
+    private static void mergeOnlyPresentInOne(TreeSet<String> currentFiles,
+                                              TreeSet<String> givenFiles,
+                                              TreeSet<String> splitFiles,
+                                              Commit current, Commit given, Commit split,
+                                              TreeMap<String, String> mergeMap) {
         for (String fileName: splitFiles) {
             // Any files present at the split point, unmodified in the current branch,
             // and absent in the given branch are removed (and untracked).
@@ -391,14 +519,28 @@ public class Repository {
                 mergeMap.remove(fileName);
                 removeFile(fileName);
             }
+            // Any files present at the split point, unmodified in the given branch,
+            // and absent in the current branch should remain absent.
+            if (!currentFiles.contains(fileName)
+                    && split.getFileSHA(fileName).equals(given.getFileSHA(fileName))) {
+                mergeMap.remove(fileName);
+            }
         }
-        // Handle conflicts:
-        // Any files modified in different ways in the current and given branches are in conflict.
-        // "Modified in different ways" can mean:
-        //      - (1) the contents of both are changed and different from other,
-        //      - (2) the contents of one are changed and the other file is deleted,
-        //      - (3) the file was absent at the split point and has different contents
-        //      in the given and current branches.
+    }
+
+    /** Handles conflicts. Returns true if any conflicts were found, false otherwise.
+     * Any files modified in different ways in the current and given branches are in conflict.
+     * "Modified in different ways" can mean:
+     *      - (1) the contents of both are changed and different from other,
+     *      - (2) the contents of one are changed and the other file is deleted,
+     *      - (3) the file was absent at the split point and has different contents
+     *      in the given and current branches. */
+    private static boolean mergeConflicts(TreeSet<String> currentFiles,
+                                          TreeSet<String>  givenFiles,
+                                          TreeSet<String> splitFiles,
+                                          Commit current, Commit given, Commit split,
+                                          TreeMap<String, String> mergeMap) {
+
         boolean foundConflict = false;
         // For files present at the split point:
         for (String fileName: splitFiles) {
@@ -411,7 +553,7 @@ public class Repository {
                 Blob.writeConflict(CWD, fileName, curr, givn);
             } else if ((curr == null && givn != null && !givn.equals(splt))
                     || (givn == null && curr != null && !curr.equals(splt))) {
-                // case (2):
+                // case (2)
                 Blob.writeConflict(CWD, fileName, curr, givn);
             } else {
                 continue;
@@ -421,6 +563,7 @@ public class Repository {
             conflicted.saveBlob();
             mergeMap.put(fileName, conflicted.getSHA1());
         }
+        // case (3)
         // Files not present at the split point:
         // Make a set of files not present in the split point, but present in both the current
         // and the given commit
@@ -438,12 +581,6 @@ public class Repository {
                 mergeMap.put(fileName, conflicted.getSHA1());
             }
         }
-        Commit mergedCommit = new Commit(branchName, current.getSHA1(), given.getSHA1(), mergeMap);
-        mergedCommit.saveCommit();
-        Branch.moveBranchHead(mergedCommit);
-        Staging.resetStaging();
-        if (foundConflict) {
-            System.out.println("Encountered a merge conflict.");
-        }
+        return foundConflict;
     }
 }

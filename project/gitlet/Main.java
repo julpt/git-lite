@@ -116,7 +116,7 @@ public class Main {
     }
 
     /** Exits with message "Incorrect operands.".
-     * To be used if the number or order of operands if wrong. */
+     * Used if the number or order of operands is wrong. */
     private static void wrongOperands() {
         Utils.printAndExit("Incorrect operands.");
     }

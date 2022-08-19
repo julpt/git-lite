@@ -7,8 +7,6 @@ import java.io.File;
  * A branch is a file located inside BRANCH_DIR that keeps track of a commit - its head.
  * At any time, there exists a HEAD branch, designated by the HEAD file. The head of
  * this branch is the current commit, and this branch is also called the current branch.
- *
- *  @author jul
  */
 public class Branch {
 
@@ -17,8 +15,7 @@ public class Branch {
 
 
     /** Adds new branch with given name and head.
-     * Prints error message if branch with given name already exists.
-     */
+     * Prints error message if branch with given name already exists.  */
     public static void addBranch(String name, Commit head) {
         File branch = Utils.join(BRANCH_DIR, name);
         if (branch.isFile()) {
