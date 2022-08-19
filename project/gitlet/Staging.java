@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.TreeSet;
 import java.util.TreeMap;
 
+/** Handles most interactions with staged files or the Staging Area. */
 public class Staging {
 
     /** Current working directory. */
@@ -11,9 +12,6 @@ public class Staging {
 
     /** Directory of files staged for addition. */
     public static final File STAGE_DIR = Paths.STAGE_DIR;
-
-    /** File that tracks the current HEAD branch. */
-    public static final File HEAD = Paths.HEAD;
 
     /** File that tracks items added to the staging area. Maps file names to Blob SHA1s. */
     public static final File INDEX = Paths.INDEX;
@@ -110,8 +108,8 @@ public class Staging {
     }
 
     /** Clears the Staging directory.
-     * Creates an empty {index} file to track files staged for addition.
-     * Also creates an empty {removed} file to track files staged for removal.
+     * Creates an empty [index] file to track files staged for addition.
+     * Also creates an empty [removed] file to track files staged for removal.
      * If these files exist, they are reset.
      */
     public static void resetStaging() {
@@ -131,12 +129,9 @@ public class Staging {
         }
     }
 
-    /** Checks if any files have been staged. Exits with error message if there are
-     * no staged files. Used before making a commit. */
-    public static void checkStaged() {
-        if (getStagedIndex().size() == 0 && getRemoved().size() == 0) {
-            Utils.printAndExit("No changes added to the commit.");
-        }
+    /** Returns true if any files have been staged for addition or removal. False otherwise. */
+    public static boolean checkStaged() {
+        return !(getStagedIndex().size() == 0 && getRemoved().size() == 0);
     }
 
     /** Returns a map of the staged file names and their respective SHA1s. */
@@ -149,11 +144,6 @@ public class Staging {
     @SuppressWarnings("unchecked")
     public static TreeSet<String> getRemoved() {
         return Utils.readObject(REMOVED, TreeSet.class);
-    }
-
-    /** Returns the Staged Blob with the given SHA1. */
-    public static Blob getStagedFile(String sha) {
-        return Utils.readObject(Utils.join(STAGE_DIR, sha), Blob.class);
     }
 
 }

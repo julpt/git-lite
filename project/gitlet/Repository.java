@@ -6,14 +6,8 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.List;
 
-// TODO: any imports you need here
 
-/** Represents a gitlet repository.
- *  TODO: It's a good idea to give a description here of what else this Class
- *  does at a high level.
- *
- *  @author jul
- */
+/** Represents a gitlet repository. */
 public class Repository {
 
     /** The current working directory. */
@@ -37,11 +31,8 @@ public class Repository {
     /** File that tracks the current HEAD branch. */
     public static final File HEAD = Paths.HEAD;
 
-    /** File that tracks items added to the staging area. Maps file names to Blob SHA1s. */
-    public static final File INDEX = Paths.INDEX;
 
-
-    /** Creates a new Gitlet version-control system in the current directory. */
+    /** Creates a new Gitlet version-control system in the current working directory. */
 
     public static void setup() {
         boolean created = GITLET_DIR.mkdir();
@@ -99,20 +90,21 @@ public class Repository {
      * were not tracked by its parent.
      *
      * Finally, files tracked in the current commit may be untracked in the new commit as
-     * a result being staged for removal by the rm command.
-     * */
+     * a result being staged for removal by the rm command. */
     public static void commit(String message) {
         checkInitialized();
         if (message.equals("")) {
             Utils.printAndExit("Please enter a commit message.");
         }
-        Staging.checkStaged();
+        if (!Staging.checkStaged()) {
+            Utils.printAndExit("No changes added to the commit.");
+        }
         Commit currentCommit = Branch.getHeadCommit();
         TreeMap<String, String> stagedFiles = Staging.getStagedIndex();
         TreeSet<String> removedFiles = Staging.getRemoved();
         Commit newCommit = Commit.addStaged(currentCommit, message, stagedFiles, removedFiles);
         for (String stagedFileSHA: stagedFiles.values()) {
-            Blob addedFile = Staging.getStagedFile(stagedFileSHA);
+            Blob addedFile = Utils.readObject(Utils.join(STAGE_DIR, stagedFileSHA), Blob.class);
             addedFile.saveBlob();
         }
         newCommit.saveCommit();
@@ -122,10 +114,8 @@ public class Repository {
 
     /** Unstages the file if it is currently staged for addition.
      * If the file is tracked in the current commit, stage it for removal and remove the file
-     * from the working directory if the user has not already done so.<br><br>
-     *
-     * If the file is neither staged nor tracked by the head commit, prints an error message.
-     */
+     * from the working directory if the user has not already done so.
+     * If the file is neither staged nor tracked by the head commit, prints an error message. */
     public static void removeFile(String fileName) {
         checkInitialized();
         Staging.removeFile(fileName);
@@ -133,10 +123,7 @@ public class Repository {
 
     /** Starting at the current head commit, display information about each commit backwards along
      * the commit tree until the initial commit, following the first parent commit links, ignoring
-     * any second parents found in merge commits.
-     *
-     * For every node in this history, display the commit SHA1, timestamp and message..
-     */
+     * any second parents found in merge commits. */
     public static void log() {
         checkInitialized();
         Commit head = Branch.getHeadCommit();
@@ -144,8 +131,7 @@ public class Repository {
     }
 
     /** Like log, except displays information about all commits ever made.
-     * Commits are not listed in a particular order.
-     */
+     * Commits are not listed in a particular order. */
     public static void logAll() {
         checkInitialized();
         List<String> commits = Utils.plainFilenamesIn(COMM_DIR);
@@ -177,8 +163,7 @@ public class Repository {
 
     /** Takes the version of the file as it exists in the head commit and puts it in the working
      * directory, overwriting the version of the file that’s already there if there is one.
-     * The new version of the file is not staged.
-     */
+     * The new version of the file is not staged. */
     public static void checkoutFile(String fileName) {
         checkInitialized();
         String currentSHA = Branch.getHeadCommitSHA();
@@ -188,8 +173,7 @@ public class Repository {
     /** Takes the version of the file as it exists in the commit with the given id,
      * and puts it in the working directory, overwriting the version of the file
      * that’s already there if there is one.
-     * The new version of the file is not staged.
-     */
+     * The new version of the file is not staged. */
     public static void checkoutFromCommit(String commitID, String fileName) {
         checkInitialized();
         Commit comm = Commit.getFromSHA(commitID);
@@ -201,39 +185,30 @@ public class Repository {
         fileBlob.writeContentsToFile(CWD, fileName);
     }
 
-    /** Takes all files in the commit at the head of the given branch, and puts them in the working
-     * directory, overwriting the versions of the files that are already there if they exist.
+    /** Checks out all files tracked by the head commit of the given branch.
+     * Removes tracked files that are not present in that commit.
      * At the end of this command, the given branch will be considered the current branch. (HEAD)
-     * Any files that are tracked in the current branch but are not present in the checked-out
-     * branch are deleted.
-     * The staging area is cleared, unless the checked-out branch is the current branch.
-     */
+     * If a working file is untracked in the current branch and would be overwritten by the
+     * checkout, prints an error message.
+     * The staging area is cleared, unless the checked-out branch is the current branch. */
     public static void checkoutBranch(String branchName) {
         checkInitialized();
-        Commit branchHead = Branch.getCommitFromBranch(branchName);
         Commit currentHead = Branch.getHeadCommit();
-        Set<String> trackedFiles = currentHead.getContents();
-        /* If a working file is untracked in the current branch and would be overwritten
-        by the checkout, prints an error message. */
-        for (String fileName: branchHead.getContents()) {
-            if (Utils.join(CWD, fileName).isFile() && !trackedFiles.contains(fileName)) {
-                Utils.printAndExit("There is an untracked file in the way; "
-                        + "delete it, or add and commit it first.");
-            }
+        if (branchName.equals(Branch.getCurrentBranchName())) {
+            Utils.printAndExit("No need to checkout the current branch.");
         }
-        for (String name: trackedFiles) {
-            File file = Utils.join(CWD, name);
-            Utils.restrictedDelete(file);
+        File branch = Utils.join(BRANCH_DIR, branchName);
+        if (!branch.isFile()) {
+            Utils.printAndExit("No such branch exists.");
         }
-        branchHead.copyToCWD();
+        Commit branchHead = Commit.getFromSHA(Utils.readContentsAsString(branch));
+        checkoutCopyFiles(branchHead, currentHead);
         Utils.writeContents(HEAD, branchName);
-        Staging.resetStaging();
     }
 
 
     /** Displays what branches currently exist, and marks the current branch with a *.
-     * Also displays what files have been staged for addition or removal.
-     * TODO: extra credit not staged and untracked*/
+     * Also displays what files have been staged for addition or removal. */
     public static void status() {
         checkInitialized();
         printBranches();
@@ -283,8 +258,7 @@ public class Repository {
     }
 
     /** Checks if working directory is an initialized Gitlet directory.
-     * Prints error message if it is not.
-     */
+     * Prints error message if it is not. */
     private static void checkInitialized() {
         if (!GITLET_DIR.exists()) {
             Utils.printAndExit("Not in an initialized Gitlet directory.");
@@ -292,15 +266,19 @@ public class Repository {
     }
 
     public static void addBranch(String name) {
+        checkInitialized();
         Commit head = Branch.getHeadCommit();
         Branch.addBranch(name, head);
     }
 
+    /** Removes the given branch. Prints error messages if trying to remove current branch
+     * or if given branch doesn't exist. */
     public static void removeBranch(String name) {
+        checkInitialized();
         if (name.equals(Branch.getCurrentBranchName())) {
             Utils.printAndExit("Cannot remove the current branch.");
         }
-        for (String branch: Utils.plainFilenamesIn(BRANCH_DIR)){
+        for (String branch: Utils.plainFilenamesIn(BRANCH_DIR)) {
             if (name.equals(branch)) {
                 Utils.join(BRANCH_DIR, name).delete();
                 return;
@@ -309,6 +287,163 @@ public class Repository {
         Utils.printAndExit("A branch with that name does not exist.");
     }
 
+    /** Checks out all the files tracked by the given commit. Removes tracked files that are
+     * not present in that commit. Also moves the current branch’s head to that commit node.  */
+    public static void reset(String commitID) {
+        checkInitialized();
+        Commit target = Commit.getFromSHA(commitID);
+        Commit head = Branch.getHeadCommit();
+        checkoutCopyFiles(target, head);
+        Utils.writeContents(Utils.join(BRANCH_DIR, Branch.getCurrentBranchName()), commitID);
+    }
 
-    /* TODO: fill in the rest of this class. */
+    /** Method that copies and deletes files for checkoutBranch and reset, and clears staging.
+     * Does not change the current branch or branch heads. */
+    private static void checkoutCopyFiles(Commit targetCommit, Commit currentCommit) {
+        Set<String> trackedFiles = currentCommit.getContents();
+        checkUntrackedConflicts(targetCommit, currentCommit);
+        for (String name: trackedFiles) {
+            File file = Utils.join(CWD, name);
+            Utils.restrictedDelete(file);
+        }
+        targetCommit.copyToCWD();
+        Staging.resetStaging();
+    }
+
+    /** Checks if a working file is untracked in the current branch and would be overwritten
+     * by a checkout. If so, prints an error message. */
+    private static void checkUntrackedConflicts(Commit targetCommit, Commit currentCommit) {
+        Set<String> trackedFiles = currentCommit.getContents();
+        for (String fileName: targetCommit.getContents()) {
+            if (Utils.join(CWD, fileName).isFile() && !trackedFiles.contains(fileName)) {
+                Utils.printAndExit("There is an untracked file in the way; "
+                        + "delete it, or add and commit it first.");
+            }
+        }
+    }
+
+    /**  Merges files from the given branch into the current branch. */
+    public static void merge(String branchName) {
+        checkInitialized();
+        if (Staging.checkStaged()) {
+            Utils.printAndExit("You have uncommitted changes.");
+        }
+        Commit current = Branch.getHeadCommit();
+        if (branchName.equals(Branch.getCurrentBranchName())) {
+            Utils.printAndExit("Cannot merge a branch with itself.");
+        }
+        File branch = Utils.join(BRANCH_DIR, branchName);
+        if (!branch.isFile()) {
+            Utils.printAndExit("A branch with that name does not exist.");
+        }
+        Commit given = Commit.getFromSHA(Utils.readContentsAsString(branch));
+        Commit split = Commit.getSplitPoint(current, given);
+        if (split.equals(given)) {
+            // If the split point is the given branch, do nothing; the merge is complete.
+            System.out.println("Given branch is an ancestor of the current branch.");
+            return;
+        } else if (split.equals(current)) {
+            // If the split point is the current branch, check out the given branch.
+            checkoutBranch(branchName);
+            System.out.println("Current branch fast-forwarded.");
+            return;
+        }
+        checkUntrackedConflicts(given, current);
+
+        // Any files that have been modified in the given branch since the split point, but not
+        // modified in the current branch since the split point should be changed to their versions
+        // in the given branch (checked out from the commit at the front of the given branch).
+        // These files will then all be automatically staged.
+        Set<String> givenFiles = given.getContents();
+        Set<String> currentFiles = current.getContents();
+        Set<String> splitFiles = split.getContents();
+        TreeMap<String, String> mergeMap = new TreeMap<>(split.getSnapshot());
+        // Handle files from given commit:
+        for (String fileName: givenFiles) {
+            String sha = given.getFileSHA(fileName);
+            // Files present in current commit and split point:
+            if (currentFiles.contains(fileName) && splitFiles.contains(fileName)) {
+                String shaAtCurrent = current.getFileSHA(fileName);
+                String shaAtSplit = split.getFileSHA(fileName);
+                // Files that were modified in the given branch since the split point but are the
+                // same in the current branch as at the split are checked out from the given commit
+                // and staged.
+                if (!sha.equals(shaAtSplit) && shaAtCurrent.equals(shaAtSplit)) {
+                    mergeMap.put(fileName, sha);
+                    checkoutFromCommit(given.getSHA1(), fileName);
+                    addFile(fileName);
+                }
+            }
+            // Files that were not present at the split point and are present only in the given
+            // branch are checked out from the given commit and staged.
+            if (!splitFiles.contains(fileName) && !currentFiles.contains(fileName)) {
+                mergeMap.put(fileName, sha);
+                checkoutFromCommit(given.getSHA1(), fileName);
+                addFile(fileName);
+            }
+        }
+        // Handle files present at split point, but absent in the given branch:
+        for (String fileName: splitFiles) {
+            // Any files present at the split point, unmodified in the current branch,
+            // and absent in the given branch are removed (and untracked).
+            if (!givenFiles.contains(fileName)
+                    && split.getFileSHA(fileName).equals(current.getFileSHA(fileName))) {
+                mergeMap.remove(fileName);
+                removeFile(fileName);
+            }
+        }
+        // Handle conflicts:
+        // Any files modified in different ways in the current and given branches are in conflict.
+        // "Modified in different ways" can mean:
+        //      - (1) the contents of both are changed and different from other,
+        //      - (2) the contents of one are changed and the other file is deleted,
+        //      - (3) the file was absent at the split point and has different contents
+        //      in the given and current branches.
+        boolean foundConflict = false;
+        // For files present at the split point:
+        for (String fileName: splitFiles) {
+            String curr = current.getFileSHA(fileName);
+            String givn = given.getFileSHA(fileName);
+            String splt = split.getFileSHA(fileName);
+            if (currentFiles.contains(fileName) && givenFiles.contains(fileName)
+                    && (!curr.equals(givn) && !curr.equals(splt) && !givn.equals(splt))) {
+                // case (1)
+                Blob.writeConflict(CWD, fileName, curr, givn);
+            } else if ((curr == null && givn != null && !givn.equals(splt))
+                    || (givn == null && curr != null && !curr.equals(splt))) {
+                // case (2):
+                Blob.writeConflict(CWD, fileName, curr, givn);
+            } else {
+                continue;
+            }
+            foundConflict = true;
+            Blob conflicted = new Blob(fileName);
+            conflicted.saveBlob();
+            mergeMap.put(fileName, conflicted.getSHA1());
+        }
+        // Files not present at the split point:
+        // Make a set of files not present in the split point, but present in both the current
+        // and the given commit
+        TreeSet<String> notSplit = new TreeSet<>(currentFiles);
+        notSplit.removeAll(splitFiles);
+        notSplit.retainAll(givenFiles);
+        for (String fileName: notSplit) {
+            String curr = current.getFileSHA(fileName);
+            String givn = given.getFileSHA(fileName);
+            if (!curr.equals(givn)) {
+                foundConflict = true;
+                Blob.writeConflict(CWD, fileName, curr, givn);
+                Blob conflicted = new Blob(fileName);
+                conflicted.saveBlob();
+                mergeMap.put(fileName, conflicted.getSHA1());
+            }
+        }
+        Commit mergedCommit = new Commit(branchName, current.getSHA1(), given.getSHA1(), mergeMap);
+        mergedCommit.saveCommit();
+        Branch.moveBranchHead(mergedCommit);
+        Staging.resetStaging();
+        if (foundConflict) {
+            System.out.println("Encountered a merge conflict.");
+        }
+    }
 }

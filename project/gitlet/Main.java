@@ -2,9 +2,7 @@ package gitlet;
 
 
 
-/** Driver class for Gitlet, a subset of the Git version-control system.
- *  @author TODO
- */
+/** Driver class for Gitlet, a subset of the Git version-control system. */
 public class Main {
 
     /** Usage: java gitlet.Main ARGS, where ARGS contains
@@ -102,8 +100,15 @@ public class Main {
                 if (args.length != 2) {
                     wrongOperands();
                 }
+                String commitID = args[1];
+                Repository.reset(commitID);
+                break;
+            case "merge":
+                if (args.length != 2) {
+                    wrongOperands();
+                }
                 branchName = args[1];
-                Repository.removeBranch(branchName);
+                Repository.merge(branchName);
                 break;
             default:
                 Utils.printAndExit("No command with that name exists.");

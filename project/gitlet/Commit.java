@@ -5,13 +5,7 @@ import java.io.Serializable;
 import java.util.*;
 
 
-// TODO: any imports you need here
-
-// TODO: You'll likely use this in this class
-
 /** Represents a gitlet commit object.
- *  TODO: It's a good idea to give a description here of what else this Class
- *  does at a high level.
  *  Each commit object keeps track of:
  *      a log message,
  *      a timestamp,
@@ -22,14 +16,6 @@ import java.util.*;
  *  @author jul
  */
 public class Commit implements Serializable {
-    /**
-     * TODO: add instance variables here.
-     *
-     * List all instance variables of the Commit class here with a useful
-     * comment above them describing what that variable represents and how that
-     * variable is used. We've provided one example for `message`.
-     */
-
     /** The current working directory */
     private static final File CWD = Paths.CWD;
 
@@ -52,12 +38,10 @@ public class Commit implements Serializable {
     private String mainParent;
 
     /** The SHA1 of the second parent of this Commit, if it exists. Null otherwise */
-    private String mergedParent;
+    private String secondParent;
 
     /** True if this Commit is the result of a merge, false otherwise. */
     private final boolean isMerged;
-
-    /* TODO: fill in the rest of this class. */
 
     public String getSHA1() {
         return sha1;
@@ -83,7 +67,7 @@ public class Commit implements Serializable {
      * @param message commit message
      * @param parent main parent's SHA1
      * @param snapshot mapping of file names to blob references.
-     * */
+     */
     public Commit(String message, String parent, TreeMap<String, String> snapshot) {
         isMerged = false;
         this.message = message;
@@ -91,6 +75,25 @@ public class Commit implements Serializable {
         this.snapshot = snapshot;
         this.timestamp = new Date();
         sha1 = Utils.sha1(timestamp.toString(), message, snapshot.toString(), parent);
+    }
+
+    /** Constructor for merged Commits.
+     * @param mergedBranch name of the branch being merged
+     * @param mainParent main parent's SHA1
+     * @param secondParent second parent's SHA1
+     * @param snapshot mapping of file names to blob references.
+     */
+    public Commit(String mergedBranch, String mainParent, String secondParent,
+                  TreeMap<String, String> snapshot) {
+        isMerged = true;
+        this.timestamp = new Date();
+        this.message = String.format("Merged %s into %s.",
+                mergedBranch, Branch.getCurrentBranchName());
+        this.mainParent = mainParent;
+        this.secondParent = secondParent;
+        this.snapshot = snapshot;
+        sha1 = Utils.sha1(timestamp.toString(), message,
+                snapshot.toString(), mainParent, secondParent);
     }
 
     /** Saves this Commit to COMM_DIR.
@@ -156,14 +159,14 @@ public class Commit implements Serializable {
     }
 
     /** Returns the SHA1 of a given file in this Commit. Null if file not in Commit. */
-    public String getFileSHA (String fileName){
+    public String getFileSHA(String fileName) {
         return snapshot.get(fileName);
     }
 
 
     /** Returns true if this commit's message is the same as the given string, false otherwise. */
-    public boolean hasMessage(String message) {
-        return message.equals(this.message);
+    public boolean hasMessage(String givenMessage) {
+        return message.equals(givenMessage);
     }
 
     /** Starting at the given commit, prints details of each commit backwards along the commit
@@ -176,6 +179,57 @@ public class Commit implements Serializable {
             current = Commit.getFromSHA(current.mainParent);
         }
         System.out.print(current);
+    }
+
+    /** Returns true if the [current] commit is the ancestor of the [other] commit. */
+    public static boolean isAncestor(Commit current, Commit other) {
+        if (current.mainParent == null || current.equals(other)) {
+            // The initial commit is an ancestor of all others;
+            // The [other] commit is either the original commit passed to this method or one of
+            // its ancestors. If it is equal to the [current] commit, then the [current] commit
+            // is indeed an ancestor of the [other] originally passed to this method.
+            return true;
+        } else if (other.mainParent == null || current.timestamp.after(other.timestamp)) {
+            // The initial commit has no ancestor;
+            // If a commit's timestamp is more recent than another's, it cannot be that commit's
+            // ancestor.
+            return false;
+        }
+        if (other.isMerged) {
+            return isAncestor(current, getFromSHA(other.mainParent))
+                    || isAncestor(current, getFromSHA(other.secondParent));
+        }
+        return isAncestor(current, getFromSHA(other.mainParent));
+    }
+
+    /** Returns the split point, which is the latest common ancestor of the two given commits. */
+    public static Commit getSplitPoint(Commit current, Commit merged) {
+        Commit older;
+        Commit newer;
+        if (current.timestamp.before(merged.timestamp)) {
+            older = current;
+            newer = merged;
+        } else {
+            older = merged;
+            newer = current;
+        }
+        if (isAncestor(older, newer)) {
+            return older;
+        }
+        // Move up the line of [older]'s main parents until we find an ancestor of [newer].
+        while (older.mainParent != null) {
+            if (isAncestor(older, newer)) {
+                return older;
+            }
+            older = getFromSHA(older.mainParent);
+        }
+        // By the end, older points to the initial commit;
+        // If no other ancestors are found, then this has to be the only common ancestor.
+        return older;
+    }
+
+    public TreeMap<String, String> getSnapshot() {
+        return snapshot;
     }
 
     @Override
@@ -194,9 +248,25 @@ public class Commit implements Serializable {
                     + "Date: %2$ta %2$tb %2$te %2$tH:%2$tM:%2$tS %2$tY %2$tz%n"
                     + "%3$s%n",
                     sha1, timestamp, message, mainParent.substring(0, 7),
-                    mergedParent.substring(0, 7));
+                    secondParent.substring(0, 7));
         }
         return commit;
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (obj.getClass() != this.getClass()) {
+            return false;
+        }
+        Commit other = (Commit) obj;
+        return this.sha1.equals(other.sha1);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(sha1);
+    }
 }

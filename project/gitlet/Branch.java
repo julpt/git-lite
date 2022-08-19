@@ -3,7 +3,13 @@ package gitlet;
 
 import java.io.File;
 
-
+/** Some methods to create and interact with gitlet branches.
+ * A branch is a file located inside BRANCH_DIR that keeps track of a commit - its head.
+ * At any time, there exists a HEAD branch, designated by the HEAD file. The head of
+ * this branch is the current commit, and this branch is also called the current branch.
+ *
+ *  @author jul
+ */
 public class Branch {
 
     public static final File BRANCH_DIR = Paths.BRANCH_DIR;
@@ -39,20 +45,6 @@ public class Branch {
         String headName = Utils.readContentsAsString(HEAD);
         File headBranch = Utils.join(BRANCH_DIR, headName);
         return Utils.readContentsAsString(headBranch);
-    }
-
-    /** Returns the head commit of the given branch.
-     * Prints error message if branch doesn't exist.
-     */
-    public static Commit getCommitFromBranch(String branchName) {
-        if (branchName.equals(getCurrentBranchName())) {
-            Utils.printAndExit("No need to checkout the current branch.");
-        }
-        File branch = Utils.join(BRANCH_DIR, branchName);
-        if (!branch.isFile()) {
-            Utils.printAndExit("No such branch exists.");
-        }
-        return Commit.getFromSHA(Utils.readContentsAsString(branch));
     }
 
     /** Returns the name of the current branch. */
