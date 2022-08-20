@@ -4,7 +4,8 @@ package gitlet;
 import java.io.File;
 
 /** Some methods to create and interact with gitlet branches.
- * A branch is a file located inside BRANCH_DIR that keeps track of a commit - its head.
+ * A branch is a file located inside BRANCH_DIR that points to a commit - its head.
+ *
  * At any time, there exists a HEAD branch, designated by the HEAD file. The head of
  * this branch is the current commit, and this branch is also called the current branch.
  */

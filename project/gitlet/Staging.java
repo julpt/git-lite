@@ -56,10 +56,10 @@ public class Staging {
             stagedFiles.remove(fileName);
             Utils.writeObject(INDEX, stagedFiles);
         } else {
-            /* Add file to Staging area. */
+            // Add file to Staging area.
             Utils.writeObject(destination, addedFile);
 
-            /* Add file name and SHA1 to index. */
+            // Add file name and SHA1 to index.
             stagedFiles.put(fileName, addedFile.getSHA1());
             Utils.writeObject(INDEX, stagedFiles);
         }
@@ -97,7 +97,7 @@ public class Staging {
 
     /** Unstages the file if it is currently staged for addition.
      * If the file is tracked in the current commit, stages it for removal and removes the file
-     * from the working directory if the user has not already done so.<br><br>
+     * from the working directory if the user has not already done so.
      *
      * If the file is neither staged nor tracked by the head commit, prints an error message.
      * */

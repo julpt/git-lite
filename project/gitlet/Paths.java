@@ -2,7 +2,7 @@ package gitlet;
 
 import java.io.File;
 
-/** Keeps track of most used file paths. */
+/** Keeps track of Gitlet file paths. */
 public final class Paths {
     /** The current working directory. */
     public static final File CWD = new File(System.getProperty("user.dir"));
@@ -30,4 +30,7 @@ public final class Paths {
 
     /** File that tracks items staged for removal. */
     public static final File REMOVED = Utils.join(GITLET_DIR, "removed");
+
+    /** File that tracks remotes. */
+    public static final File REMOTE = Utils.join(GITLET_DIR, "remotes");
 }

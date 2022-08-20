@@ -1,10 +1,7 @@
 package gitlet;
 
 import java.io.File;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
-import java.util.List;
+import java.util.*;
 
 
 /** Represents a gitlet repository. */
@@ -31,6 +28,9 @@ public class Repository {
     /** File that tracks the current HEAD branch. */
     public static final File HEAD = Paths.HEAD;
 
+    /** File that tracks remotes. */
+    public static final File REMOTE = Paths.REMOTE;
+
 
     /** Creates a new Gitlet version-control system in the current working directory. */
 
@@ -54,6 +54,8 @@ public class Repository {
         Branch.addBranch("master", initial);
         // add files to track staged and removed files
         Staging.resetStaging();
+        // add file to track remotes
+        Utils.writeObject(REMOTE, new HashMap<String, File>());
     }
 
     /** Adds a copy of the file as it currently exists to the staging area.
@@ -252,8 +254,8 @@ public class Repository {
     /** Prints what files in the current directory differ from the current commit or are
      * not tracked by it. */
     private static void printModifiedAndUntracked() {
-        TreeMap<String, String> tracked = Branch.getHeadCommit().getSnapshot();
-        TreeSet<String> modified = new TreeSet<>();
+        HashMap<String, String> tracked = Branch.getHeadCommit().getSnapshot();
+        HashSet<String> modified = new HashSet<>();
         TreeMap<String, String> added = Staging.getStagedIndex();
         TreeSet<String> removed = Staging.getRemoved();
         List<String> files = Utils.plainFilenamesIn(CWD);
@@ -318,6 +320,7 @@ public class Repository {
         }
     }
 
+    /** Creates a new branch with the given name, and points it at the current head commit. */
     public static void addBranch(String name) {
         checkInitialized();
         Commit head = Branch.getHeadCommit();
@@ -347,6 +350,7 @@ public class Repository {
         Commit target = Commit.getFromSHA(commitID);
         Commit head = Branch.getHeadCommit();
         checkoutCopyFiles(target, head);
+        // Move current branch's head
         Utils.writeContents(Utils.join(BRANCH_DIR, Branch.getCurrentBranchName()), commitID);
     }
 
@@ -405,12 +409,12 @@ public class Repository {
 
         // If there are no uncommitted changes, begin merging.
         // Use sets to keep track of files in the three referenced commits.
-        // Use a TreeMap to build the snapshot of the merged commit, starting from the snapshot of
+        // Use a HashMap to build the snapshot of the merged commit, starting from the snapshot of
         // the split point.
-        TreeSet<String> givenFiles = new TreeSet<>(given.getContents());
-        TreeSet<String> currentFiles = new TreeSet<>(current.getContents());
-        TreeSet<String> splitFiles = new TreeSet<>(split.getContents());
-        TreeMap<String, String> mergeMap = new TreeMap<>(split.getSnapshot());
+        HashSet<String> givenFiles = new HashSet<>(given.getContents());
+        HashSet<String> currentFiles = new HashSet<>(current.getContents());
+        HashSet<String> splitFiles = new HashSet<>(split.getContents());
+        HashMap<String, String> mergeMap = new HashMap<>(split.getSnapshot());
 
         mergeFromCurrent(currentFiles, givenFiles, splitFiles, current, mergeMap);
         mergeSameInBoth(currentFiles, givenFiles, splitFiles, current, given, split, mergeMap);
@@ -432,13 +436,13 @@ public class Repository {
 
     /** Any files that were not present at the split point and are present only in the current
      * branch should remain as they are. Adds them to the merged commit's snapshot.*/
-    private static void mergeFromCurrent(TreeSet<String> currentFiles,
-                                         TreeSet<String> givenFiles,
-                                         TreeSet<String> splitFiles,
+    private static void mergeFromCurrent(HashSet<String> currentFiles,
+                                         HashSet<String> givenFiles,
+                                         HashSet<String> splitFiles,
                                          Commit current,
-                                         TreeMap<String, String> mergeMap) {
+                                         HashMap<String, String> mergeMap) {
 
-        Set<String> filesInCurrent = new TreeSet<>(currentFiles);
+        HashSet<String> filesInCurrent = new HashSet<>(currentFiles);
         filesInCurrent.removeAll(splitFiles);
         filesInCurrent.removeAll(givenFiles);
         for (String fileName : filesInCurrent) {
@@ -449,13 +453,13 @@ public class Repository {
     /** Any files that have been modified in both the current and given branch in the same way
      * (i.e., both files now have the same content or were both removed) are left unchanged
      * by the merge. */
-    private static void mergeSameInBoth(TreeSet<String> currentFiles,
-                                        TreeSet<String> givenFiles,
-                                        TreeSet<String> splitFiles,
+    private static void mergeSameInBoth(HashSet<String> currentFiles,
+                                        HashSet<String> givenFiles,
+                                        HashSet<String> splitFiles,
                                         Commit current, Commit given, Commit split,
-                                        TreeMap<String, String> mergeMap) {
+                                        HashMap<String, String> mergeMap) {
 
-        Set<String> filesInCurrAndGiven = new TreeSet<>(currentFiles);
+        HashSet<String> filesInCurrAndGiven = new HashSet<>(currentFiles);
         filesInCurrAndGiven.retainAll(givenFiles);
         // Same file in current and given, different or absent at split point
         for (String fileName: filesInCurrAndGiven) {
@@ -474,11 +478,11 @@ public class Repository {
     }
 
     /** Stages non-conflicting files from the given branch. */
-    private static void mergeFromGiven(TreeSet<String> currentFiles,
-                                       TreeSet<String> givenFiles,
-                                       TreeSet<String> splitFiles,
+    private static void mergeFromGiven(HashSet<String> currentFiles,
+                                       HashSet<String> givenFiles,
+                                       HashSet<String> splitFiles,
                                        Commit current, Commit given, Commit split,
-                                       TreeMap<String, String> mergeMap) {
+                                       HashMap<String, String> mergeMap) {
 
         for (String fileName: givenFiles) {
             String sha = given.getFileSHA(fileName);
@@ -506,11 +510,11 @@ public class Repository {
     }
 
     /** Handles files present at split point, unchanged in one branch and removed in the other. */
-    private static void mergeOnlyPresentInOne(TreeSet<String> currentFiles,
-                                              TreeSet<String> givenFiles,
-                                              TreeSet<String> splitFiles,
+    private static void mergeOnlyPresentInOne(HashSet<String> currentFiles,
+                                              HashSet<String> givenFiles,
+                                              HashSet<String> splitFiles,
                                               Commit current, Commit given, Commit split,
-                                              TreeMap<String, String> mergeMap) {
+                                              HashMap<String, String> mergeMap) {
         for (String fileName: splitFiles) {
             // Any files present at the split point, unmodified in the current branch,
             // and absent in the given branch are removed (and untracked).
@@ -535,11 +539,11 @@ public class Repository {
      *      - (2) the contents of one are changed and the other file is deleted,
      *      - (3) the file was absent at the split point and has different contents
      *      in the given and current branches. */
-    private static boolean mergeConflicts(TreeSet<String> currentFiles,
-                                          TreeSet<String>  givenFiles,
-                                          TreeSet<String> splitFiles,
+    private static boolean mergeConflicts(HashSet<String> currentFiles,
+                                          HashSet<String>  givenFiles,
+                                          HashSet<String> splitFiles,
                                           Commit current, Commit given, Commit split,
-                                          TreeMap<String, String> mergeMap) {
+                                          HashMap<String, String> mergeMap) {
 
         boolean foundConflict = false;
         // For files present at the split point:
@@ -567,7 +571,7 @@ public class Repository {
         // Files not present at the split point:
         // Make a set of files not present in the split point, but present in both the current
         // and the given commit
-        TreeSet<String> notSplit = new TreeSet<>(currentFiles);
+        HashSet<String> notSplit = new HashSet<>(currentFiles);
         notSplit.removeAll(splitFiles);
         notSplit.retainAll(givenFiles);
         for (String fileName: notSplit) {
@@ -582,5 +586,158 @@ public class Repository {
             }
         }
         return foundConflict;
+    }
+
+    /** Returns a HashMap of remote names and addresses */
+    @SuppressWarnings("unchecked")
+    private static HashMap<String, File> getRemotes() {
+        return (HashMap<String, File>) Utils.readObject(REMOTE, HashMap.class);
+    }
+
+    /** Saves the given path under the given remote name. Attempts to push or pull
+     * from the given remote name will then attempt to use this .gitlet directory. */
+    public static void addRemote(String name, String address) {
+        // Address should point to a valid .gitlet directory, as in:
+        // [name of remote directory]/.gitlet
+        address.replace("/", File.separator);
+        HashMap<String, File> remotes = getRemotes();
+        if (remotes.containsKey(name)) {
+            Utils.printAndExit("A remote with that name already exists.");
+        }
+        remotes.put(name, new File(address));
+        Utils.writeObject(REMOTE, remotes);
+    }
+
+    /** Remove information associated with the given remote name.
+     * The idea here is that if you ever wanted to change a remote that you added,
+     * you would have to first remove it and then re-add it. */
+    public static void removeRemote(String name) {
+        HashMap<String, File> remotes = getRemotes();
+        if (!remotes.containsKey(name)) {
+            Utils.printAndExit("A remote with that name does not exist.");
+        }
+        remotes.remove(name);
+        Utils.writeObject(REMOTE, remotes);
+    }
+
+    /** Attempts to append the current branch’s commits to the end of the given branch at the
+     * given remote.
+     * This command only works if the remote branch’s head is in the history of the current local
+     * head, which means that the local branch contains some commits in the future of the remote
+     * branch.
+     * In this case, append the future commits to the remote branch. Then, the remote should reset
+     * to the front of the appended commits (so its head will be the same as the local head).
+     *
+     * If the Gitlet system on the remote machine exists but does not have the input branch,
+     * then simply adds the branch to the remote Gitlet.*/
+    public static void push(String remoteName, String branchName) {
+        HashMap<String, File> remotes = getRemotes();
+        File remoteDir = remotes.get(remoteName);
+        File branch = Utils.join(remoteDir, "heads", branchName);
+        if (!remotes.containsKey(remoteName) || !remoteDir.isDirectory()) {
+            Utils.printAndExit("Remote directory not found.");
+        }
+        Commit given = getRemoteBranch(remoteDir, branchName);
+        Commit current = Branch.getHeadCommit();
+        if (given == null) {
+            // create named branch if it doesn't exist, and set it to the initial commit
+            given = new Commit();
+            Utils.writeContents(branch, given.getSHA1());
+            Utils.writeObject(Utils.join(remoteDir, "commits"), given);
+
+        }
+        if (!Commit.isAncestor(given, current, false)) {
+            Utils.printAndExit("Please pull down remote changes before pushing.");
+        }
+        pushToRemote(remoteDir, given, current);
+        // Set the remote branch's head
+        Utils.writeContents(branch, current.getSHA1());
+
+    }
+
+    /** Append commits to remote branch. */
+    private static void pushToRemote(File remoteDir, Commit given, Commit current) {
+        // Copy commits
+        Commit pointer = current;
+        File blobDir = Utils.join(remoteDir, "blobs");
+        File commDir = Utils.join(remoteDir, "commits");
+        while (!given.equals(pointer)) {
+            pointer.saveCommit(commDir);
+            HashMap<String, String> snapshot = pointer.getSnapshot();
+            // Copy blobs not present in remote branch
+            for (String fileName: snapshot.keySet()) {
+                String sha = snapshot.get(fileName);
+                File blobFile = Utils.join(blobDir, sha);
+                if (!blobFile.isFile()) {
+                    Blob b = Blob.getFromSHA(sha);
+                    b.saveBlob(blobDir);
+                }
+            }
+            pointer = pointer.getMainParent(commDir);
+        }
+    }
+
+    /** Returns the head of the given remote branch, if that branch exists.
+     * If no such branch exists, returns null. */
+    private static Commit getRemoteBranch(File remoteDir, String branchName) {
+        File branch = Utils.join(remoteDir, "heads", branchName);
+        File commDir = Utils.join(remoteDir, "commits");
+        if (branch.isFile()) {
+            return Commit.getFromSHA(Utils.readContentsAsString(branch), commDir);
+        }
+        return null;
+    }
+
+    /** Brings down commits from the remote Gitlet repository into the local Gitlet repository. */
+    public static void fetch(String remoteName, String branchName) {
+        HashMap<String, File> remotes = getRemotes();
+        File remoteDir = remotes.get(remoteName);
+        if (!remotes.containsKey(remoteName) || !remoteDir.isDirectory()) {
+            Utils.printAndExit("Remote directory not found.");
+        }
+        Commit given = getRemoteBranch(remoteDir, branchName);
+        if (given == null) {
+            Utils.printAndExit("That remote does not have that branch.");
+        }
+        fetchRemote(remoteDir, given, remoteName, branchName);
+    }
+
+    /** Copies all commits and blobs from the given branch in the remote repository (that are not
+     * already in the current repository) into a branch named [remote name]/[remote branch name].
+     * Set fetched branch's head to point to the current commit. */
+    private static void fetchRemote(File remoteDir, Commit given,
+                                    String remoteName, String branchName) {
+        // Copy commits
+        Commit pointer = given;
+        File commDir = Utils.join(remoteDir, "commits");
+        File blobDir = Utils.join(remoteDir, "blobs");
+        while (pointer.getMainParent(commDir) != null) {
+            File destination = Utils.join(COMM_DIR, pointer.getSHA1());
+            if (!destination.isFile()) {
+                Utils.writeObject(destination, pointer);
+                HashMap<String, String> snapshot = pointer.getSnapshot();
+                // Copy blobs not present in the current branch
+                for (String fileName: snapshot.keySet()) {
+                    String sha = snapshot.get(fileName);
+                    File blob = Utils.join(BLOB_DIR, sha);
+                    if (!blob.isFile()) {
+                        Blob b = Blob.getFromSHA(sha, blobDir);
+                        b.saveBlob();
+                    }
+                }
+            }
+            pointer = pointer.getMainParent(commDir);
+        }
+        // Set [remote name]/[remote branch name] to point to the fetched branch's head
+        Utils.join(BRANCH_DIR, remoteName).mkdir();
+        File fetchedBranch = Utils.join(BRANCH_DIR, remoteName, branchName);
+        Utils.writeContents(fetchedBranch, given.getSHA1());
+    }
+
+    /** Fetches branch [remote name]/[remote branch name] as for the fetch command, and then merges
+     * that fetch into the current branch. */
+    public static void pull(String remoteName, String branchName) {
+        fetch(remoteName, branchName);
+        merge(remoteName + File.separator + branchName);
     }
 }

@@ -19,106 +19,99 @@ public class Main {
                 Repository.setup();
                 break;
             case "add":
-                if (args.length != 2) {
-                    wrongOperands();
-                }
-                String fileName = args[1];
-                Repository.addFile(fileName);
+                checkOperands(args, 2);
+                Repository.addFile(args[1]);
                 break;
             case "commit":
-                if (args.length != 2) {
-                    wrongOperands();
-                }
-                String message = args[1];
-                Repository.commit(message);
+                checkOperands(args, 2);
+                Repository.commit(args[1]);
                 break;
             case "rm":
-                if (args.length != 2) {
-                    wrongOperands();
-                }
-                fileName = args[1];
-                Repository.removeFile(fileName);
+                checkOperands(args, 2);
+                Repository.removeFile(args[1]);
                 break;
             case "log":
-                if (args.length != 1) {
-                    wrongOperands();
-                }
+                checkOperands(args, 1);
                 Repository.log();
                 break;
             case "global-log":
-                if (args.length != 1) {
-                    wrongOperands();
-                }
+                checkOperands(args, 1);
                 Repository.logAll();
                 break;
             case "find":
-                if (args.length != 2) {
-                    wrongOperands();
-                }
-                message = args[1];
-                Repository.find(message);
+                checkOperands(args, 2);
+                Repository.find(args[1]);
                 break;
             case "status":
-                if (args.length != 1) {
-                    wrongOperands();
-                }
+                checkOperands(args, 1);
                 Repository.status();
                 break;
             case "checkout":
                 if (args.length == 2) {
                     // Usage: java gitlet.Main checkout [branch name]
-                    String branch = args[1];
-                    Repository.checkoutBranch(branch);
+                    Repository.checkoutBranch(args[1]);
                 } else if (args.length == 3 && args[1].equals("--")) {
                     // Usage: java gitlet.Main checkout -- [file name]
-                    fileName = args[2];
-                    Repository.checkoutFile(fileName);
+                    Repository.checkoutFile(args[2]);
                 } else if (args.length == 4 && args[2].equals("--")) {
                     // Usage: java gitlet.Main checkout [commit id] -- [file name]
-                    String commitID = args[1];
-                    fileName = args[3];
-                    Repository.checkoutFromCommit(commitID, fileName);
+                    Repository.checkoutFromCommit(args[1], args[3]);
                 } else {
-                    wrongOperands();
+                    Utils.printAndExit("Incorrect operands.");
                 }
                 break;
             case "branch":
-                if (args.length != 2) {
-                    wrongOperands();
-                }
-                String branchName = args[1];
-                Repository.addBranch(branchName);
+                checkOperands(args, 2);
+                Repository.addBranch(args[1]);
                 break;
             case "rm-branch":
-                if (args.length != 2) {
-                    wrongOperands();
-                }
-                branchName = args[1];
-                Repository.removeBranch(branchName);
+                checkOperands(args, 2);
+                Repository.removeBranch(args[1]);
                 break;
             case "reset":
-                if (args.length != 2) {
-                    wrongOperands();
-                }
-                String commitID = args[1];
-                Repository.reset(commitID);
+                checkOperands(args, 2);
+                Repository.reset(args[1]);
                 break;
             case "merge":
-                if (args.length != 2) {
-                    wrongOperands();
-                }
-                branchName = args[1];
-                Repository.merge(branchName);
+                checkOperands(args, 2);
+                Repository.merge(args[1]);
+                break;
+            case "add-remote":
+                // Usage: java gitlet.Main add-remote [remote name] [name of remote directory]/.gitlet
+                checkOperands(args, 3);
+                Repository.addRemote(args[1], args[2]);
+                break;
+            case "rm-remote":
+                // Usage: java gitlet.Main rm-remote [remote name]
+                checkOperands(args, 2);
+                Repository.removeRemote(args[1]);
+                break;
+            case "push":
+                // Usage: java gitlet.Main push [remote name] [remote branch name]
+                checkOperands(args, 3);
+                Repository.push(args[1], args[2]);
+                break;
+            case "fetch":
+                // Usage: java gitlet.Main fetch [remote name] [remote branch name]
+                checkOperands(args, 3);
+                Repository.fetch(args[1], args[2]);
+                break;
+            case "pull":
+                // Usage: java gitlet.Main pull [remote name] [remote branch name]
+                checkOperands(args, 3);
+                Repository.pull(args[1], args[2]);
                 break;
             default:
                 Utils.printAndExit("No command with that name exists.");
         }
     }
 
-    /** Exits with message "Incorrect operands.".
-     * Used if the number or order of operands is wrong. */
-    private static void wrongOperands() {
-        Utils.printAndExit("Incorrect operands.");
+    /** Checks if the number of arguments is correct. Prints an error message
+     * if the wrong number of arguments was provided. */
+    private static void checkOperands(String[] operands, int correctLength) {
+        if (operands.length != correctLength) {
+            Utils.printAndExit("Incorrect operands.");
+        }
     }
 
 }

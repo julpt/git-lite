@@ -4,12 +4,9 @@ import java.io.File;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 
-/** Represents a gitlet blob object. Blobs are the saved contents of files.
+/** Represents a Gitlet Blob object. Blobs are the saved contents of files.
  * Since Gitlet saves many versions of files, a single file might correspond to
  * multiple blobs: each being tracked in a different commit.
- *
- *
- *  @author jul
  */
 public class Blob implements Serializable {
 
@@ -32,37 +29,42 @@ public class Blob implements Serializable {
         return sha1;
     }
 
-    /** Creates a Blob of the given file.
-     * @param fileName name of the file, which must be in the current working directory.
-     */
+    /** Creates a Blob of the given file inside the current working directory. */
     public Blob(String fileName) {
         File target = Utils.join(CWD, fileName);
         contents = Utils.readContents(target);
         sha1 = Utils.sha1(contents);
     }
 
-    /** Saves this Blob to BLOB_DIR.
-     * The name of this saved file is the SHA1 of the Blob.
-     */
+    /** Saves this Blob to BLOB_DIR. For non-remote Blobs. */
     public void saveBlob() {
-        File newFile = Utils.join(BLOB_DIR, sha1);
+        this.saveBlob(BLOB_DIR);
+    }
+
+    /** Saves this Blob to given directory. The name of this saved file is the SHA1 of the Blob. */
+    public void saveBlob(File blobDir) {
+        File newFile = Utils.join(blobDir, sha1);
         Utils.writeObject(newFile, this);
     }
 
-    /** Returns the Blob with the given SHA1. */
+    /** Returns the Blob with the given SHA1. For non-remote blobs. */
     public static Blob getFromSHA(String sha) {
-        return Utils.readObject(Utils.join(BLOB_DIR, sha), Blob.class);
+        return getFromSHA(sha, BLOB_DIR);
     }
 
-    /** Saves the contents of this Blob to a file with the given name in the given directory. */
+    /** Returns the Blob with the given SHA1 from the given directory. */
+    public static Blob getFromSHA(String sha, File blobDir) {
+        return Utils.readObject(Utils.join(blobDir, sha), Blob.class);
+    }
+
+    /** Writes the contents of this Blob to a file with the given name in the given directory. */
     public void writeContentsToFile(File directory, String fileName) {
         File file = Utils.join(directory, fileName);
         Utils.writeContents(file, contents);
     }
 
     /** Saves a "conflict" file to the given directory. Conflict files have a particular layout
-     * and have the contents of both the current and the given versions of the named file.
-     */
+     * and keep the contents of both the current and the given versions of the given file. */
     public static void writeConflict(File directory, String fileName,
                                      String currentSha, String givenSha) {
         File file = Utils.join(directory, fileName);
