@@ -7,6 +7,7 @@ import java.util.*;
 
 /** Represents a gitlet commit object.
  *  Each commit object keeps track of:
+ *      its SHA-1, which is used to reference and identify it,
  *      a log message,
  *      a timestamp,
  *      a mapping of file names to blob references,
@@ -124,8 +125,7 @@ public class Commit implements Serializable {
         return new Commit(message, currentCommit.sha1, newFiles);
     }
 
-    /** Returns the commit with the given SHA1.
-     * If no commit is found, prints an error message.
+    /** Returns the commit with the given SHA1. If no commit is found, prints an error message.
      * For non-remote commits. */
     public static Commit getFromSHA(String sha) {
         return getFromSHA(sha, COMM_DIR);
@@ -224,7 +224,7 @@ public class Commit implements Serializable {
             return isAncestor(current, other.getMainParent(), true)
                     || isAncestor(current, getFromSHA(other.secondParent), true);
         }
-        return isAncestor(current, other.getMainParent(), false);
+        return isAncestor(current, other.getMainParent(), checkBothParents);
     }
 
     /** Returns the split point, which is the latest common ancestor of the two given commits. */
