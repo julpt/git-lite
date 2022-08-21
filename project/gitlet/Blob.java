@@ -7,6 +7,10 @@ import java.nio.charset.StandardCharsets;
 /** Represents a Gitlet Blob object. Blobs are the saved contents of files.
  * Since Gitlet saves many versions of files, a single file might correspond to
  * multiple blobs: each being tracked in a different commit.
+ *
+ * Each Blob object keeps track of:
+ *      its SHA-1, which is used to reference and identify it,
+ *      its contents - the contents of a file that was staged and committed.
  */
 public class Blob implements Serializable {
 
@@ -17,8 +21,7 @@ public class Blob implements Serializable {
     private static final File BLOB_DIR = Paths.BLOB_DIR;
 
     /** The SHA1 of this Blob.
-     * If two Blobs have the same SHA1, we assume their contents are the same.
-     */
+     * If two Blobs have the same SHA1, we assume their contents are the same. */
     private final String sha1;
 
     /** The contents of the Blob. */

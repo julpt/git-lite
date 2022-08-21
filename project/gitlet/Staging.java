@@ -27,8 +27,7 @@ public class Staging {
      * in the current commit, it won't be staged, and will be removed from the
      * staging area if it is already there.
      *
-     * The file will no longer be staged for removal, if it was at the time of the command.
-     */
+     * The file will no longer be staged for removal, if it was at the time of the command. */
     public static void stageFile(String fileName) {
         Blob addedFile = new Blob(fileName);
         TreeMap<String, String> stagedFiles = getStagedIndex();
@@ -79,8 +78,7 @@ public class Staging {
 
     /** If the file is tracked in the current commit, stages it for removal and
      * removes it from the working directory.
-     * Returns true if the file was staged for removal, false otherwise.
-     */
+     * Returns true if the file was staged for removal, false otherwise. */
     private static boolean stageForRemoval(String fileName) {
         String fileInCurrentCommit = Branch.getHeadCommit().getFileSHA(fileName);
         if (fileInCurrentCommit != null) {
@@ -99,8 +97,7 @@ public class Staging {
      * If the file is tracked in the current commit, stages it for removal and removes the file
      * from the working directory if the user has not already done so.
      *
-     * If the file is neither staged nor tracked by the head commit, prints an error message.
-     * */
+     * If the file is neither staged nor tracked by the head commit, prints an error message. */
     public static void removeFile(String fileName) {
         if (!unstage(fileName) && !stageForRemoval(fileName)) {
             Utils.printAndExit("No reason to remove the file.");
@@ -110,8 +107,7 @@ public class Staging {
     /** Clears the Staging directory.
      * Creates an empty [index] file to track files staged for addition.
      * Also creates an empty [removed] file to track files staged for removal.
-     * If these files exist, they are reset.
-     */
+     * If these files exist, they are reset. */
     public static void resetStaging() {
         clearStaging();
         Utils.writeObject(INDEX, new TreeMap<String, String>());

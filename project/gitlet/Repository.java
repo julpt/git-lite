@@ -394,6 +394,7 @@ public class Repository {
             Utils.printAndExit("A branch with that name does not exist.");
         }
         Commit given = Commit.getFromSHA(Utils.readContentsAsString(branch));
+        // Get the split point - the latest common ancestor of the current and given branch heads
         Commit split = Commit.getSplitPoint(current, given);
         if (split.equals(given)) {
             // If the split point is the given branch, do nothing; the merge is complete.
@@ -704,7 +705,7 @@ public class Repository {
 
     /** Copies all commits and blobs from the given branch in the remote repository (that are not
      * already in the current repository) into a branch named [remote name]/[remote branch name].
-     * Set fetched branch's head to point to the current commit. */
+     */
     private static void fetchRemote(File remoteDir, Commit given,
                                     String remoteName, String branchName) {
         // Copy commits
